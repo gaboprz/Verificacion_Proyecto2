@@ -25,7 +25,9 @@ class mesh_pkt extends uvm_sequence_item;
   bit [`PKG_SZ-1:0]         raw_pkt;
   
   constraint c_nxt_no_bcast { nxt_jump != 8'hFF; }
-  
+  constraint c_row { target_row inside {[0:`ROWS-1]}; }
+  constraint c_col { target_col inside {[0:`COLUMNS-1]}; }
+
   function new(string name="mesh_pkt");
     super.new(name);
   endfunction
