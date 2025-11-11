@@ -78,46 +78,38 @@ class monitor extends uvm_monitor;
 
   virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
-
     string key = $sformatf("ext_if[%0d]", device_id);
     if (!uvm_config_db#(virtual router_external_if)::get(this, "", key, vif))
-      `uvm_fatal("MON", $sformatf("No se obtuvo router_external_if con clave %s", key))
-
+      `uvm_fatal("MON", $sformatf("No vif con clave %s", key))
     mon_analysis_port = new("mon_analysis_port", this);
   endfunction
 
   virtual task run_phase(uvm_phase phase);
     bit prev_pndng = 1'b0;
-
     forever begin
       @(posedge vif.clk);
+      if (vif.rst) begin prev_pndng = 1'b0; continue; end
 
-      // Si hay reset, reinicia detector de flanco
-      if (vif.rst) begin
-        prev_pndng = 1'b0;
-        continue;
-      end
-
-      // Flanco de subida de pndng (salida lista del DUT)
+      // Flanco de subida: DUT tiene dato listo de salida
       if (vif.pndng && !prev_pndng) begin
         main_pck tr = main_pck::type_id::create("tr");
-        // Snapshot principal (salida del DUT)
+        // Salida observada
         tr.data_out = vif.data_out;
         tr.pndng    = vif.pndng;
         tr.popin    = vif.popin;
-        // Snapshot informativo (entrada hacia el DUT)
+        // Snapshot de entrada (informativo)
         tr.data_out_i_in = vif.data_out_i_in;
         tr.pndng_i_in    = vif.pndng_i_in;
         tr.pop           = vif.pop;
+        // Puerto/terminal de este monitor
+        tr.dev_id        = device_id;
 
         mon_analysis_port.write(tr);
-
         `uvm_info("MON_CAPTURE",
           $sformatf("Dev %0d | OUT=0x%0h (pndng=%0b) | IN=0x%0h (pndng_i_in=%0b pop=%0b)",
                     device_id, tr.data_out, tr.pndng, tr.data_out_i_in, tr.pndng_i_in, tr.pop),
           UVM_MEDIUM)
       end
-
       prev_pndng = vif.pndng;
     end
   endtask
