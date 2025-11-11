@@ -23,7 +23,9 @@ class mesh_pkt extends uvm_sequence_item;
 
   // Vector listo para el DUT
   bit [`PKG_SZ-1:0]         raw_pkt;
-
+  
+  constraint c_nxt_no_bcast { nxt_jump != 8'hFF; }
+  
   function new(string name="mesh_pkt");
     super.new(name);
   endfunction
