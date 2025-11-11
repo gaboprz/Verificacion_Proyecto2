@@ -1,22 +1,21 @@
-class gen_mesh_seq extends uvm_sequence;
+class gen_mesh_seq extends uvm_sequence #(mesh_pkt);
   `uvm_object_utils(gen_mesh_seq)
-  
-  function new(string name="gen_mesh_seq");
-    super.new(name);
-  endfunction
-  
-  rand int num; 	// Número de paquetes a generar
+
+  rand int num;  
   
   constraint c1 { num inside {[2:5]}; }
-  
+
+  function new(string name="gen_mesh_seq"); 
+  super.new(name); 
+  endfunction
+
   virtual task body();
     for (int i = 0; i < num; i++) begin
-      mesh_pkt m_item = mesh_pkt::type_id::create("m_item");
+      mesh_pkt m_item = mesh_pkt::type_id::create($sformatf("m_item_%0d", i));
       start_item(m_item);
-      m_item.randomize();
-      `uvm_info("SEQ", $sformatf("Generate new item: %s", m_item.convert2str()), UVM_LOW)
+      void'(m_item.randomize());
+      `uvm_info("SEQ", $sformatf("Generate: %s", m_item.convert2str()), UVM_LOW)
       finish_item(m_item);
     end
-    `uvm_info("SEQ", $sformatf("Done generation of %0d items", num), UVM_LOW)
   endtask
 endclass

@@ -12,6 +12,7 @@ import uvm_pkg::*;
 // =========================
 class mesh_pkt extends uvm_sequence_item;
 
+  `uvm_object_utils(mesh_pkt)
   // Campos del paquete
   rand bit [7:0]            nxt_jump;
   rand bit [3:0]            target_row;
