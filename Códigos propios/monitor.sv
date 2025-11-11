@@ -24,6 +24,8 @@ class monitor extends uvm_monitor;
         
         mon_analysis_port = new("mon_analysis_port", this);
     endfunction
+
+    
     
     // RUN PHASE - CAPTURA SIMULTÁNEA
     virtual task run_phase(uvm_phase phase);
@@ -56,5 +58,67 @@ class monitor extends uvm_monitor;
             mon_analysis_port.write(transaction);
         end
     endtask
+
     
+    
+endclass
+
+//Problema: pop es el ACK de entrada (TB→DUT). Para observar la salida (DUT→TB) debes mirar pndng
+// (y, si tienes un consumidor que acepte la salida, usarías su popin). Un monitor pasivo no debe depender de pop.
+class monitor extends uvm_monitor;
+  `uvm_component_utils(monitor)
+
+  uvm_analysis_port #(main_pck) mon_analysis_port;
+  virtual router_external_if vif;
+  int device_id;
+
+  function new(string name="monitor", uvm_component parent=null);
+    super.new(name, parent);
+  endfunction
+
+  virtual function void build_phase(uvm_phase phase);
+    super.build_phase(phase);
+
+    string key = $sformatf("ext_if[%0d]", device_id);
+    if (!uvm_config_db#(virtual router_external_if)::get(this, "", key, vif))
+      `uvm_fatal("MON", $sformatf("No se obtuvo router_external_if con clave %s", key))
+
+    mon_analysis_port = new("mon_analysis_port", this);
+  endfunction
+
+  virtual task run_phase(uvm_phase phase);
+    bit prev_pndng = 1'b0;
+
+    forever begin
+      @(posedge vif.clk);
+
+      // Si hay reset, reinicia detector de flanco
+      if (vif.rst) begin
+        prev_pndng = 1'b0;
+        continue;
+      end
+
+      // Flanco de subida de pndng (salida lista del DUT)
+      if (vif.pndng && !prev_pndng) begin
+        main_pck tr = main_pck::type_id::create("tr");
+        // Snapshot principal (salida del DUT)
+        tr.data_out = vif.data_out;
+        tr.pndng    = vif.pndng;
+        tr.popin    = vif.popin;
+        // Snapshot informativo (entrada hacia el DUT)
+        tr.data_out_i_in = vif.data_out_i_in;
+        tr.pndng_i_in    = vif.pndng_i_in;
+        tr.pop           = vif.pop;
+
+        mon_analysis_port.write(tr);
+
+        `uvm_info("MON_CAPTURE",
+          $sformatf("Dev %0d | OUT=0x%0h (pndng=%0b) | IN=0x%0h (pndng_i_in=%0b pop=%0b)",
+                    device_id, tr.data_out, tr.pndng, tr.data_out_i_in, tr.pndng_i_in, tr.pop),
+          UVM_MEDIUM)
+      end
+
+      prev_pndng = vif.pndng;
+    end
+  endtask
 endclass
