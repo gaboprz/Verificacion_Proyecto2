@@ -31,7 +31,9 @@ class mesh_pkt extends uvm_sequence_item;
       raw_pkt[`PKG_SZ-18 -: `PAYLOAD_W] = payload;
   endfunction
 
-  function void post_randomize(); pack_bits(); endfunction
+  function void post_randomize(); 
+  pack_bits(); 
+  endfunction
 
   function string convert2str();
     return $sformatf("to[%0d,%0d] mode=%0b payload=0x%0h egress_id=%0d",
