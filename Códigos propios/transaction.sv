@@ -1,22 +1,18 @@
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Se definen los paquetes necesarios para las transacciones
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// === Contenedor que publica el MONITOR hacia el SCOREBOARD (egreso observado) ===
+// No se secuencia, por eso es uvm_object (ligero).
+class main_pck extends uvm_object;
+  // Snapshot de ENTRADA (solo debug)
+  logic [39:0] data_out_i_in;
+  bit          pndng_i_in;
+  bit          pop;
 
-// Clase de transacción, paquete de entrada y salida de routers exteriores
-// --- Transacción que publica el MONITOR (egreso) ---
-class main_pck extends uvm_sequence_item;
-  // Entrada (solo para snapshot/debug)
-  rand logic [39:0] data_out_i_in;
-  rand bit          pndng_i_in;
-  rand bit          pop;
+  // SALIDA observada del DUT
+  logic [39:0] data_out;
+  bit          pndng;
+  bit          popin;
 
-  // Salida observada del DUT
-  logic [39:0]      data_out;
-  bit               pndng;
-  bit               popin;
-
-  // Desde qué puerto/terminal salió.
-  int unsigned      dev_id;
+  // Puerto/terminal por donde el monitor vio la salida
+  int unsigned dev_id;
 
   `uvm_object_utils_begin(main_pck)
     `uvm_field_int(data_out_i_in, UVM_ALL_ON)

@@ -68,7 +68,9 @@ endclass
 class monitor extends uvm_monitor;
   `uvm_component_utils(monitor)
 
-  uvm_analysis_port #(main_pck) mon_analysis_port;
+  // Antes: uvm_analysis_port #(main_pck) mon_analysis_port;
+  uvm_analysis_port #(mesh_pkt) mon_ap;
+
   virtual router_external_if vif;
   int device_id;
 
@@ -81,7 +83,7 @@ class monitor extends uvm_monitor;
     string key = $sformatf("ext_if[%0d]", device_id);
     if (!uvm_config_db#(virtual router_external_if)::get(this, "", key, vif))
       `uvm_fatal("MON", $sformatf("No vif con clave %s", key))
-    mon_analysis_port = new("mon_analysis_port", this);
+    mon_ap = new("mon_ap", this);
   endfunction
 
   virtual task run_phase(uvm_phase phase);
@@ -90,24 +92,24 @@ class monitor extends uvm_monitor;
       @(posedge vif.clk);
       if (vif.rst) begin prev_pndng = 1'b0; continue; end
 
-      // Flanco de subida: DUT tiene dato listo de salida
+      // Flanco de subida de pndng (hay dato listo en la salida del DUT)
       if (vif.pndng && !prev_pndng) begin
-        main_pck tr = main_pck::type_id::create("tr");
-        // Salida observada
-        tr.data_out = vif.data_out;
-        tr.pndng    = vif.pndng;
-        tr.popin    = vif.popin;
-        // Snapshot de entrada (informativo)
-        tr.data_out_i_in = vif.data_out_i_in;
-        tr.pndng_i_in    = vif.pndng_i_in;
-        tr.pop           = vif.pop;
-        // Puerto/terminal de este monitor
-        tr.dev_id        = device_id;
+        mesh_pkt tr = mesh_pkt::type_id::create("egress_tr");
 
-        mon_analysis_port.write(tr);
-        `uvm_info("MON_CAPTURE",
-          $sformatf("Dev %0d | OUT=0x%0h (pndng=%0b) | IN=0x%0h (pndng_i_in=%0b pop=%0b)",
-                    device_id, tr.data_out, tr.pndng, tr.data_out_i_in, tr.pndng_i_in, tr.pop),
+        // Decodificar data_out en los campos del mesh_pkt
+        logic [39:0] bits = vif.data_out;
+        tr.nxt_jump   = bits[`PKG_SZ-1   -: 8];
+        tr.target_row = bits[`PKG_SZ-9   -: 4];
+        tr.target_col = bits[`PKG_SZ-13  -: 4];
+        tr.mode       = bits[`PKG_SZ-17];
+        if (`PAYLOAD_W > 0)
+          tr.payload = bits[`PKG_SZ-18 -: `PAYLOAD_W];
+        tr.raw_pkt = bits; // por si quieres loguear el vector completo
+
+        mon_ap.write(tr);
+
+        `uvm_info("MON_EGRESS",
+          $sformatf("Dev %0d | OUT %s", device_id, tr.convert2str()),
           UVM_MEDIUM)
       end
       prev_pndng = vif.pndng;

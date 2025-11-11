@@ -6,7 +6,7 @@ class gen_mesh_seq extends uvm_sequence #(mesh_pkt);
   constraint c1 { num inside {[2:5]}; }
 
   function new(string name="gen_mesh_seq"); 
-  super.new(name); 
+    super.new(name); 
   endfunction
 
   virtual task body();
