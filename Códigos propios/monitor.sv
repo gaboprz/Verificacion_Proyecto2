@@ -63,6 +63,7 @@ class monitor extends uvm_monitor;
     
 endclass
 
+/*
 //Problema: pop es el ACK de entrada (TB→DUT). Para observar la salida (DUT→TB) debes mirar pndng
 // (y, si tienes un consumidor que acepte la salida, usarías su popin). Un monitor pasivo no debe depender de pop.
 class monitor extends uvm_monitor;
@@ -116,3 +117,4 @@ class monitor extends uvm_monitor;
     end
   endtask
 endclass
+*/

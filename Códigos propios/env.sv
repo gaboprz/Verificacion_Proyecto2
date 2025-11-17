@@ -11,7 +11,7 @@ class mesh_env extends uvm_env;
   `uvm_component_utils(mesh_env)
 
   // Número de puertos/agentes externos (por defecto 1)
-  int unsigned NUM_DEVS = 1;
+  int unsigned NUM_DEVS = 16;
 
   // Arreglo de agentes
   external_agent   agents[];
