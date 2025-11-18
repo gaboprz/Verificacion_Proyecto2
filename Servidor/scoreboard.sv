@@ -54,7 +54,9 @@ class mesh_scoreboard extends uvm_scoreboard;
       return;
     end
 
-    exp_t expected = by_key[key].pop_front();
+    exp_t expected;
+    expected = by_key[key].pop_front();
+
 
     // Comparar header
     if (expected.target_row != pkt.target_row || expected.target_col != pkt.target_col || expected.mode != pkt.mode) begin
