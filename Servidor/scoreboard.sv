@@ -1,8 +1,8 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Se define el scoreboard - Manteniendo lógica EXACTA
+// Se define el scoreboard
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-`include "mesh_defines.svh"
+//`include "mesh_defines.svh"
 
 `uvm_analysis_imp_decl(_ingress)
 `uvm_analysis_imp_decl(_egress)
@@ -15,8 +15,8 @@ class mesh_scoreboard extends uvm_scoreboard;
   // Egreso desde el monitor (mesh_pkt con egress_id)
   uvm_analysis_imp_egress  #(mesh_pkt, mesh_scoreboard) egress_imp;
 
-  // Esperados por payload (cola FIFO por clave) - SIN CAMBIOS
-  typedef struct packed {
+  // Esperados por payload (cola FIFO por clave)
+  typedef struct {
     int  target_row;
     int  target_col;
     bit  mode;
@@ -35,7 +35,7 @@ class mesh_scoreboard extends uvm_scoreboard;
     egress_imp  = new("egress_imp" , this);
   endfunction
 
-  // DRIVER → SCB - SIN CAMBIOS
+  // DRIVER → SCB
   function void write_ingress(mesh_pkt tr);
     string key = $sformatf("%0h", tr.payload);
     exp_t e; e.target_row = tr.target_row; e.target_col = tr.target_col; e.mode = tr.mode; e.t_submit = $time;
@@ -45,7 +45,7 @@ class mesh_scoreboard extends uvm_scoreboard;
                 tr.payload, e.target_row, e.target_col, e.mode, by_key[key].size()), UVM_LOW)
   endfunction
 
-  // MONITOR → SCB - SOLUCIÓN AL ERROR
+  // MONITOR → SCB
   function void write_egress(mesh_pkt pkt);
     string key = $sformatf("%0h", pkt.payload);
 
@@ -54,16 +54,13 @@ class mesh_scoreboard extends uvm_scoreboard;
       return;
     end
 
-    // SOLUCIÓN: Usar una variable temporal en lugar de asignación directa
-    exp_t exp_value;
-    exp_value = by_key[key][0];  // Tomar el primer elemento
-    by_key[key].delete(0);       // Eliminar el primer elemento manualmente
+    exp_t exp = by_key[key].pop_front();
 
-    // Comparar header - SIN CAMBIOS
-    if (exp_value.target_row != pkt.target_row || exp_value.target_col != pkt.target_col || exp_value.mode != pkt.mode) begin
+    // Comparar header
+    if (exp.target_row != pkt.target_row || exp.target_col != pkt.target_col || exp.mode != pkt.mode) begin
       `uvm_error("SCB_HDR",
         $sformatf("Header mismatch payload=0x%0h exp[r=%0d c=%0d m=%0b] act[r=%0d c=%0d m=%0b]",
-                  pkt.payload, exp_value.target_row, exp_value.target_col, exp_value.mode,
+                  pkt.payload, exp.target_row, exp.target_col, exp.mode,
                   pkt.target_row, pkt.target_col, pkt.mode))
     end else begin
       `uvm_info("SCB_OK",
@@ -72,7 +69,7 @@ class mesh_scoreboard extends uvm_scoreboard;
         UVM_LOW)
     end
 
-    // (opcional) puerto exacto - SIN CAMBIOS
+    // (opcional) puerto exacto
     if (check_port_exact) begin
       if (!(exp_port_from_rc.exists(pkt.target_row) &&
             exp_port_from_rc[pkt.target_row].exists(pkt.target_col)))

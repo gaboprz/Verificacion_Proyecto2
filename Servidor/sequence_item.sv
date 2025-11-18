@@ -2,7 +2,7 @@
 // Se define el sequence item
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-`include "mesh_defines.svh"
+//`include "mesh_defines.svh"
 
 class mesh_pkt extends uvm_sequence_item;
   `uvm_object_utils(mesh_pkt)
