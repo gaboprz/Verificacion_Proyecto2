@@ -16,7 +16,7 @@ class mesh_scoreboard extends uvm_scoreboard;
   uvm_analysis_imp_egress  #(mesh_pkt, mesh_scoreboard) egress_imp;
 
   // Esperados por payload (cola FIFO por clave)
-  typedef struct packed {
+  typedef struct {
     int  target_row;
     int  target_col;
     bit  mode;
@@ -54,7 +54,8 @@ class mesh_scoreboard extends uvm_scoreboard;
       return;
     end
 
-    exp_t exp = by_key[key].pop_front();
+    exp_t exp;
+    exp = by_key[key].pop_front();
 
     // Comparar header
     if (exp.target_row != pkt.target_row || exp.target_col != pkt.target_col || exp.mode != pkt.mode) begin
