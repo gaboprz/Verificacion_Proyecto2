@@ -18,8 +18,9 @@ class mesh_driver extends uvm_driver #(mesh_pkt);
   endfunction
 
   virtual function void build_phase(uvm_phase phase);
+    string key:
     super.build_phase(phase);
-    string key = $sformatf("ext_if[%0d]", device_id);
+    key = $sformatf("ext_if[%0d]", device_id);
     if (!uvm_config_db#(virtual router_external_if)::get(this, "", key, vif))
       `uvm_fatal("DRV", $sformatf("No vif con clave %s", key))
     drv_ap = new("drv_ap", this);
