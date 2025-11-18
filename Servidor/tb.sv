@@ -101,19 +101,17 @@ module tb;
     endgenerate
 
     // Configuración UVM y arranque del test (en un solo initial)
-    initial begin
-        // Registrar cada interfaz en la config DB ANTES de run_test
-        for (int i = 0; i < `NUM_DEVS; i++) begin
-            string if_name = $sformatf("ext_if[%0d]", i);
-            uvm_config_db#(virtual router_external_if)::set(
-                null, "uvm_test_top.env.*", if_name, ext_if[i]);
+    generate
+        for (genvar idx = 0; idx < `NUM_DEVS; idx++) begin : register_interfaces
+            initial begin
+                string if_name = $sformatf("ext_if[%0d]", idx);  // ← idx es constante en tiempo de compilación
+                uvm_config_db#(virtual router_external_if)::set(null, "uvm_test_top.env.*", if_name, ext_if[idx]);
+            end
         end
-        // (opcional) fijar NUM_DEVS desde aquí también
-        uvm_config_db#(int unsigned)::set(null, "uvm_test_top.env", "NUM_DEVS", `NUM_DEVS);
 
         `uvm_info("TB", "Interfaces registradas en config_db", UVM_LOW)
         run_test("base_test");
-    end
+    endgenerate
 
     // Finalización de simulación (timeout)
     initial begin
@@ -129,5 +127,5 @@ module tb;
             $dumpvars(0, tb);
         end
     end
-    
+
 endmodule
