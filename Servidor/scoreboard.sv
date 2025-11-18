@@ -54,13 +54,13 @@ class mesh_scoreboard extends uvm_scoreboard;
       return;
     end
 
-    exp_t exp = by_key[key].pop_front();
+    exp_t expected = by_key[key].pop_front();
 
     // Comparar header
-    if (exp.target_row != pkt.target_row || exp.target_col != pkt.target_col || exp.mode != pkt.mode) begin
+    if (expected.target_row != pkt.target_row || expected.target_col != pkt.target_col || expected.mode != pkt.mode) begin
       `uvm_error("SCB_HDR",
         $sformatf("Header mismatch payload=0x%0h exp[r=%0d c=%0d m=%0b] act[r=%0d c=%0d m=%0b]",
-                  pkt.payload, exp.target_row, exp.target_col, exp.mode,
+                  pkt.payload, expected.target_row, expected.target_col, expected.mode,
                   pkt.target_row, pkt.target_col, pkt.mode))
     end else begin
       `uvm_info("SCB_OK",
