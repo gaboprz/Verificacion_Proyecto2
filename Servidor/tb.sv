@@ -25,8 +25,8 @@ import uvm_pkg::*;
 `include "test.sv"
 
 // DUT
-`include "fifo.sv"
-`include "Library.sv"
+//`include "fifo.sv"
+//`include "Library.sv"
 `include "Router_library.sv"
 
 module tb;
@@ -78,36 +78,44 @@ module tb;
     // Conexión de interfaces al DUT
     generate
         for (genvar i = 0; i < `NUM_DEVS; i++) begin : connect_interfaces
-            // Conexiones desde TB hacia DUT (entradas del DUT)
+            // TB -> DUT (entradas del DUT)
             assign data_out_i_in[i] = ext_if[i].data_out_i_in;
             assign pndng_i_in[i]    = ext_if[i].pndng_i_in;
             assign pop[i]           = ext_if[i].pop;
-            
-            // Conexiones desde DUT hacia TB (salidas del DUT)  
+
+            // DUT -> TB (salidas del DUT)
             assign ext_if[i].data_out = data_out[i];
             assign ext_if[i].pndng    = pndng[i];
             assign ext_if[i].popin    = popin[i];
         end
     endgenerate
 
-    // Configuración UVM - registrar interfaces
+    // ---- SINK simple para la salida (READY del TB): pop <= pndng
+    generate
+        for (genvar i = 0; i < `NUM_DEVS; i++) begin : auto_pop_sink
+            always_ff @(posedge clk or posedge reset) begin
+                if (reset) ext_if[i].pop <= 1'b0;
+                else       ext_if[i].pop <= ext_if[i].pndng; // consume cuando hay dato
+            end
+        end
+    endgenerate
+
+    // Configuración UVM y arranque del test (en un solo initial)
     initial begin
-        // Registrar cada interfaz en la config DB
+        // Registrar cada interfaz en la config DB ANTES de run_test
         for (int i = 0; i < `NUM_DEVS; i++) begin
             string if_name = $sformatf("ext_if[%0d]", i);
-            uvm_config_db#(virtual router_external_if)::set(null, "uvm_test_top.env.*", if_name, ext_if[i]);
+            uvm_config_db#(virtual router_external_if)::set(
+                null, "uvm_test_top.env.*", if_name, ext_if[i]);
         end
-        
-        `uvm_info("TB", "Interfaces registradas en config_db", UVM_LOW)
-    end
+        // (opcional) fijar NUM_DEVS desde aquí también
+        uvm_config_db#(int unsigned)::set(null, "uvm_test_top.env", "NUM_DEVS", `NUM_DEVS);
 
-    // Iniciar test UVM
-    initial begin
-        `uvm_info("TB", "Iniciando test UVM", UVM_LOW)
+        `uvm_info("TB", "Interfaces registradas en config_db", UVM_LOW)
         run_test("base_test");
     end
 
-    // Finalización de simulación
+    // Finalización de simulación (timeout)
     initial begin
         #5000; // 5us máximo de simulación
         `uvm_info("TB", "Timeout - finalizando simulación", UVM_LOW)
@@ -121,5 +129,5 @@ module tb;
             $dumpvars(0, tb);
         end
     end
-
+    
 endmodule
