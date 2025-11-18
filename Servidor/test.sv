@@ -34,8 +34,9 @@ class base_test extends uvm_test;
         `uvm_info("TEST", "Iniciando test básico", UVM_LOW)
         
         // Crear UNA secuencia y ejecutarla en UN sequencer (agente 0)
-        // Esto es suficiente para probar que todo funciona
-        gen_mesh_seq seq = gen_mesh_seq::type_id::create("seq");
+        // Esto es suficiente para probar que tod funciona
+        gen_mesh_seq seq;
+        seq = gen_mesh_seq::type_id::create("seq");
         seq.num = 3; // Solo 3 paquetes para prueba básica
         
         // Ejecutar en el primer agente solamente
