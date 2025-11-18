@@ -25,8 +25,6 @@ import uvm_pkg::*;
 `include "test.sv"
 
 // DUT
-//`include "fifo.sv"
-//`include "Library.sv"
 `include "Router_library.sv"
 
 module tb;

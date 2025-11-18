@@ -2,10 +2,6 @@
 // Se define el test
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//`include "mesh_defines.svh"
-//`include "uvm_macros.svh"
-//import uvm_pkg::*;
-
 class base_test extends uvm_test;
     `uvm_component_utils(base_test)
 

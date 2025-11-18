@@ -2,8 +2,6 @@
 // Se define el driver
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//`include "mesh_defines.svh"
-
 class mesh_driver extends uvm_driver #(mesh_pkt);
   `uvm_component_utils(mesh_driver)
 
