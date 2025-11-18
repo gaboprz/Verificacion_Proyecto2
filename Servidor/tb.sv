@@ -102,23 +102,16 @@ module tb;
   endgenerate
 
   // Registro de interfaces en config_db y arranque del test (fuera de generate)
-  initial begin : register_and_run
-    // Registrar cada interfaz con clave "ext_if[i]" para que driver/monitor la obtengan
-    for (int i = 0; i < `NUM_DEVS; i++) begin
-      string if_name;
-      if_name = $sformatf("ext_if[%0d]", i);
-      uvm_config_db#(virtual router_external_if)::set(
-        null, "uvm_test_top.env.*", if_name, ext_if[i]
-      );
+  generate
+    for (genvar idx = 0; idx < `NUM_DEVS; idx++) begin : register_interfaces
+        string if_name = $sformatf("ext_if[%0d]", idx);  // ← idx es constante en compilación
+        initial begin
+            uvm_config_db#(virtual router_external_if)::set(
+                null, "uvm_test_top.env.*", if_name, ext_if[idx]
+            );
+        end
     end
-    // (Opcional) fijar NUM_DEVS en el env
-    uvm_config_db#(int unsigned)::set(
-      null, "uvm_test_top.env", "NUM_DEVS", `NUM_DEVS
-    );
-
-    `uvm_info("TB", "Interfaces registradas en config_db", UVM_LOW)
-    run_test("base_test");
-  end
+endgenerate
 
   // Timeout
   initial begin
