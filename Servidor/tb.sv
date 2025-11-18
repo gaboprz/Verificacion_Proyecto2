@@ -5,8 +5,8 @@
 `timescale 1ns/1ps
 
 // Incluir macros UVM
-`include "uvm_macros.svh"
 import uvm_pkg::*;
+`include "uvm_macros.svh"
 
 // Definiciones del proyecto
 `include "mesh_defines.svh"
