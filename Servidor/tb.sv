@@ -103,8 +103,8 @@ module tb;
     // Configuración UVM y arranque del test (en un solo initial)
     generate
         for (genvar idx = 0; idx < `NUM_DEVS; idx++) begin : register_interfaces
+            string if_name = $sformatf("ext_if[%0d]", idx);  // ← idx es constante en tiempo de compilación
             initial begin
-                string if_name = $sformatf("ext_if[%0d]", idx);  // ← idx es constante en tiempo de compilación
                 uvm_config_db#(virtual router_external_if)::set(null, "uvm_test_top.env.*", if_name, ext_if[idx]);
             end
         end
