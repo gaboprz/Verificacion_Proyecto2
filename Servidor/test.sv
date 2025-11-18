@@ -10,6 +10,7 @@ class base_test extends uvm_test;
     `uvm_component_utils(base_test)
 
     mesh_env env;
+    gen_mesh_seq seq;
     
     function new(string name = "base_test", uvm_component parent=null);
         super.new(name, parent);
@@ -35,7 +36,7 @@ class base_test extends uvm_test;
         
         // Crear UNA secuencia y ejecutarla en UN sequencer (agente 0)
         // Esto es suficiente para probar que tod funciona
-        gen_mesh_seq seq;
+        
         seq = gen_mesh_seq::type_id::create("seq");
         seq.num = 3; // Solo 3 paquetes para prueba básica
         
