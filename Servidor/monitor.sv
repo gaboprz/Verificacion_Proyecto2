@@ -21,10 +21,10 @@ class monitor extends uvm_monitor;
     
     // BUILD PHASE
     virtual function void build_phase(uvm_phase phase);
+        string key;
         super.build_phase(phase);
-        
         // Obtener la interfaz virtual para este dispositivo
-        string key = $sformatf("ext_if[%0d]", device_id);
+        key = $sformatf("ext_if[%0d]", device_id);
         if (!uvm_config_db#(virtual router_external_if)::get(this, "", key, vif))
             `uvm_fatal("MON", $sformatf("No se pudo obtener vif con clave %s", key))
         
