@@ -40,7 +40,7 @@ class base_test extends uvm_test;
         seq.start(env.agents[0].s0);
         
         // Esperar un poco para que los paquetes se propaguen
-        #200;
+        #1000;
         
         `uvm_info("TEST", "Test completado", UVM_LOW)
         phase.drop_objection(this);
