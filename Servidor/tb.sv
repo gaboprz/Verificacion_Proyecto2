@@ -1,7 +1,6 @@
-// -----------------------------------------------------------------------------
-// TOP del ambiente (tb.sv)
-// -----------------------------------------------------------------------------
+//`timescale 1ns/1ps
 
+// Incluir UVM
 import uvm_pkg::*;
 `include "uvm_macros.svh"
 
@@ -22,14 +21,15 @@ import uvm_pkg::*;
 `include "test.sv"
 
 // DUT
-`include "Router_library.sv"   // (y agrega Library.sv/fifo.sv si tu Router los requiere)
+`include "Router_library.sv"
 
 module tb;
+
   // Señales globales
   logic clk;
   logic reset;
 
-  // Buses del DUT
+  // Señales para el DUT - arrays para `NUM_DEVS
   logic                      pndng[`NUM_DEVS];
   logic [`PKG_SZ-1:0]        data_out[`NUM_DEVS];
   logic                      popin[`NUM_DEVS];
@@ -37,10 +37,10 @@ module tb;
   logic [`PKG_SZ-1:0]        data_out_i_in[`NUM_DEVS];
   logic                      pndng_i_in[`NUM_DEVS];
 
-  // Reloj 100 MHz
+  // Generación de reloj (100 MHz)
   initial begin
     clk = 1'b0;
-    forever #5 clk = ~clk;
+    forever #5 clk = ~clk;  // período 10 ns
   end
 
   // Reset
@@ -49,10 +49,10 @@ module tb;
     #100 reset = 1'b0;
   end
 
-  // DUT
+  // Instanciación del DUT
   mesh_gnrtr #(
     .ROWS       (`ROWS),
-    .COLUMS     (`COLUMNS),     // nombre de parámetro tal cual en tu RTL
+    .COLUMS     (`COLUMNS),   // ← nombre del parámetro tal como está en el DUT
     .pckg_sz    (`PKG_SZ),
     .fifo_depth (`FIFO_DEPTH),
     .bdcst      (`BROADCAST)
@@ -70,66 +70,77 @@ module tb;
   // Interfaces virtuales para cada dispositivo
   router_external_if ext_if[`NUM_DEVS](clk, reset);
 
-  // Conectar TB <-> DUT
-  genvar i;
+  // Conexión de interfaces al DUT
   generate
-    for (i = 0; i < `NUM_DEVS; i++) begin : CONNECT
-      // TB -> DUT
+    for (genvar i = 0; i < `NUM_DEVS; i++) begin : connect_interfaces
+      // TB -> DUT (entradas del DUT)
       assign data_out_i_in[i] = ext_if[i].data_out_i_in;
       assign pndng_i_in[i]    = ext_if[i].pndng_i_in;
       assign pop[i]           = ext_if[i].pop;
 
-      // DUT -> TB
+      // DUT -> TB (salidas del DUT)
       assign ext_if[i].data_out = data_out[i];
       assign ext_if[i].pndng    = pndng[i];
       assign ext_if[i].popin    = popin[i];
     end
   endgenerate
 
-  // SINK simple para la salida del DUT: consumir cuando haya dato
+  // SINK simple para salida (el "consumidor" acepta cuando hay dato)
   generate
-    for (genvar j = 0; j < `NUM_DEVS; j++) begin : AUTO_POP_SINK
+    for (genvar i = 0; i < `NUM_DEVS; i++) begin : auto_pop_sink
       always_ff @(posedge clk or posedge reset) begin
-        if (reset) ext_if[j].pop <= 1'b0;
-        else       ext_if[j].pop <= ext_if[j].pndng;
+        if (reset) ext_if[i].pop <= 1'b0;
+        else       ext_if[i].pop <= ext_if[i].pndng; // ready=1 cuando hay dato
       end
     end
   endgenerate
 
-  // -------- Registro de VIFs + arranque UVM (¡FUERA de generate!) --------
+  // Registro de interfaces en config_db
   initial begin
-    // Registrar cada interfaz con la MISMA llave que pide tu driver/monitor
-    // (driver/monitor hacen get(..., "", $sformatf("ext_if[%0d]", device_id), vif))
-    for (int k = 0; k < `NUM_DEVS; k++) begin
-      string if_name = $sformatf("ext_if[%0d]", k);
-      uvm_config_db#(virtual router_external_if)::set(
-        null, "uvm_test_top.env.*", if_name, ext_if[k]);
+    for (int i = 0; i < `NUM_DEVS; i++) begin
+      string if_name = $sformatf("ext_if[%0d]", i);
+      uvm_config_db#(virtual router_external_if)::set(null, "uvm_test_top.env.*", if_name, ext_if[i]);
+      `uvm_info("TB", $sformatf("Interface %s registered", if_name), UVM_LOW)
     end
-
-    // (opcional) forzar número de agentes en el env
-    uvm_config_db#(int unsigned)::set(null, "uvm_test_top.env", "NUM_DEVS", `NUM_DEVS);
-
-    `uvm_info("TB", "Interfaces registradas en config_db; arrancando UVM...", UVM_LOW)
-
-    // Opción A: fija el test aquí
-    run_test("base_test");
-
-    // Opción B: deja vacío y pasa +UVM_TESTNAME=base_test desde la línea de comandos
-    // run_test();
   end
 
-  // Timeout de seguridad
+  // Monitoreo básico del testbench
   initial begin
-    #5000;
+    #200; // Esperar a que termine el reset
+    forever begin
+      @(posedge clk);
+      for (int i = 0; i < `NUM_DEVS; i++) begin
+        if (pndng_i_in[i] === 1'b1) begin
+          $display("[TB_MON] Time %0t: Device %0d sending packet: %h", 
+                   $time, i, data_out_i_in[i]);
+        end
+        if (pndng[i] === 1'b1 && pop[i] === 1'b1) begin
+          $display("[TB_MON] Time %0t: Device %0d received packet: %h", 
+                   $time, i, data_out[i]);
+        end
+      end
+    end
+  end
+
+  // Iniciar test UVM
+  initial begin
+    `uvm_info("TB", "Starting UVM test", UVM_LOW)
+    run_test("base_test");
+  end
+
+  // Timeout
+  initial begin
+    #5000;  // 5 us
     `uvm_info("TB", "Timeout - finalizando simulación", UVM_LOW)
     $finish;
   end
 
-  // Waves
+  // Dump de waveforms (opcional)
   initial begin
     if ($test$plusargs("wave")) begin
       $dumpfile("mesh_waves.vcd");
       $dumpvars(0, tb);
+      `uvm_info("TB", "Waveform dumping enabled", UVM_LOW)
     end
   end
 
