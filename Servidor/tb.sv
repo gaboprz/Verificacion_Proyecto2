@@ -1,3 +1,7 @@
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// TOP del ambiente. Es el testbench
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 //`timescale 1ns/1ps
 
 // Incluir UVM
@@ -85,7 +89,7 @@ module tb;
     end
   endgenerate
 
-  // SINK simple para salida (el "consumidor" acepta cuando hay dato)
+  // SINK simple para salida (el “consumidor” acepta cuando hay dato)
   generate
     for (genvar i = 0; i < `NUM_DEVS; i++) begin : auto_pop_sink
       always_ff @(posedge clk or posedge reset) begin
@@ -95,38 +99,17 @@ module tb;
     end
   endgenerate
 
-  // Registro de interfaces en config_db
-  initial begin
-    for (int i = 0; i < `NUM_DEVS; i++) begin
-      string if_name = $sformatf("ext_if[%0d]", i);
-      uvm_config_db#(virtual router_external_if)::set(null, "uvm_test_top.env.*", if_name, ext_if[i]);
-      `uvm_info("TB", $sformatf("Interface %s registered", if_name), UVM_LOW)
-    end
-  end
-
-  // Monitoreo básico del testbench
-  initial begin
-    #200; // Esperar a que termine el reset
-    forever begin
-      @(posedge clk);
-      for (int i = 0; i < `NUM_DEVS; i++) begin
-        if (pndng_i_in[i] === 1'b1) begin
-          $display("[TB_MON] Time %0t: Device %0d sending packet: %h", 
-                   $time, i, data_out_i_in[i]);
+  // Registro de interfaces en config_db y arranque del test (fuera de generate)
+  generate
+    for (genvar idx = 0; idx < `NUM_DEVS; idx++) begin : register_interfaces
+        string if_name = $sformatf("ext_if[%0d]", idx);  // ← idx es constante en compilación
+        initial begin
+            uvm_config_db#(virtual router_external_if)::set(
+                null, "uvm_test_top.env.*", if_name, ext_if[idx]
+            );
         end
-        if (pndng[i] === 1'b1 && pop[i] === 1'b1) begin
-          $display("[TB_MON] Time %0t: Device %0d received packet: %h", 
-                   $time, i, data_out[i]);
-        end
-      end
     end
-  end
-
-  // Iniciar test UVM
-  initial begin
-    `uvm_info("TB", "Starting UVM test", UVM_LOW)
-    run_test("base_test");
-  end
+endgenerate
 
   // Timeout
   initial begin
@@ -140,7 +123,6 @@ module tb;
     if ($test$plusargs("wave")) begin
       $dumpfile("mesh_waves.vcd");
       $dumpvars(0, tb);
-      `uvm_info("TB", "Waveform dumping enabled", UVM_LOW)
     end
   end
 

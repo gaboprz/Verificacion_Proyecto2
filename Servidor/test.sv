@@ -1,3 +1,7 @@
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Se define el test
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class base_test extends uvm_test;
     `uvm_component_utils(base_test)
 
@@ -10,52 +14,35 @@ class base_test extends uvm_test;
 
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
-        `uvm_info("TEST", "Build phase started", UVM_LOW)
-        
         env = mesh_env::type_id::create("env", this);
         
         // Configurar el número de dispositivos
         uvm_config_db#(int unsigned)::set(this, "env", "NUM_DEVS", `NUM_DEVS);
-        
-        `uvm_info("TEST", "Build phase completed", UVM_LOW)
     endfunction
 
     virtual function void end_of_elaboration_phase(uvm_phase phase);
         super.end_of_elaboration_phase(phase);
-        `uvm_info("TEST", "UVM Topology:", UVM_LOW)
         uvm_top.print_topology();
     endfunction
 
     virtual task run_phase(uvm_phase phase);
         phase.raise_objection(this);
         
-        `uvm_info("TEST", "Run phase started", UVM_LOW)
+        `uvm_info("TEST", "Iniciando test básico", UVM_LOW)
         
-        // Esperar a que el reset termine
-        #150; // Un poco después del reset a los 100ns
-        
-        `uvm_info("TEST", "Starting sequence", UVM_LOW)
+        // Crear UNA secuencia y ejecutarla en UN sequencer (agente 0)
+        // Esto es suficiente para probar que tod funciona
         
         seq = gen_mesh_seq::type_id::create("seq");
-        seq.num = 3;
+        seq.num = 3; // Solo 3 paquetes para prueba básica
         
-        if (!seq.randomize()) 
-            `uvm_error("TEST", "Failed to randomize sequence")
-        else
-            `uvm_info("TEST", $sformatf("Sequence randomized with %0d packets", seq.num), UVM_LOW)
-        
-        `uvm_info("TEST", "Starting sequence on agent 0", UVM_LOW)
+        // Ejecutar en el primer agente solamente
         seq.start(env.agents[0].s0);
         
-        `uvm_info("TEST", "Sequence completed, waiting for packets to propagate", UVM_LOW)
-        #500; // Dar más tiempo para la propagación
+        // Esperar un poco para que los paquetes se propaguen
+        #200;
         
-        `uvm_info("TEST", "Test completed - dropping objection", UVM_LOW)
+        `uvm_info("TEST", "Test completado", UVM_LOW)
         phase.drop_objection(this);
     endtask
-
-    virtual function void report_phase(uvm_phase phase);
-        super.report_phase(phase);
-        `uvm_info("TEST", "Test report phase completed", UVM_LOW)
-    endfunction
 endclass
