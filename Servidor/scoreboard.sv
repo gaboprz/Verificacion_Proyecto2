@@ -85,4 +85,16 @@ class mesh_scoreboard extends uvm_scoreboard;
       end
     end
   endfunction
+  
+  virtual function void check_phase(uvm_phase phase);
+    super.check_phase(phase);
+
+    foreach (by_key[key]) begin
+      if (by_key[key].size() != 0) begin
+        `uvm_error("SCB_PENDING",
+          $sformatf("Quedaron %0d paquetes pendientes para payload=%s",
+                    by_key[key].size(), key));
+      end
+    end
+  endfunction
 endclass
