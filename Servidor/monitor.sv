@@ -15,6 +15,9 @@ class monitor extends uvm_monitor;
     virtual router_external_if vif;
     int device_id;  // ID del dispositivo externo (0-15)
 
+    // Bit que se usa para asegurar correcta política para aceptar datos del DUT
+    bit captured_this_packet;
+
     function new(string name="monitor", uvm_component parent=null);
         super.new(name, parent);
     endfunction
@@ -35,7 +38,7 @@ class monitor extends uvm_monitor;
     virtual task run_phase(uvm_phase phase);
         super.run_phase(phase);
 
-        bit captured_this_packet = 1'b0;
+        captured_this_packet = 1'b0;
         
         `uvm_info("MON", $sformatf("Monitor iniciado para dispositivo %0d", device_id), UVM_MEDIUM)
         
