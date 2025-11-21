@@ -113,7 +113,7 @@ class test extends uvm_test;
                         
                         seq.start(env.agents[agent].s0);
                         
-                        `uvm_info("TEST", $sformatf("Agente %0d completado: %0d paquetes", agent, seq.num, UVM_MEDIUM)
+                        `uvm_info("TEST", $sformatf("Agente %0d completado: %0d paquetes", agent, seq.num, UVM_MEDIUM))
                     end
                 end else begin
                     `uvm_info("TEST", $sformatf("Agente %0d: 0 paquetes - omitido", agent), UVM_HIGH)
