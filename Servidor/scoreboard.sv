@@ -51,6 +51,9 @@ class mesh_scoreboard extends uvm_scoreboard;
   bit header_match;
   bit port_match;
 
+  // Check Fase
+  int pending_packets;
+
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
     ingress_imp = new("ingress_imp", this);
@@ -279,7 +282,7 @@ class mesh_scoreboard extends uvm_scoreboard;
     super.check_phase(phase);
 
     // Verificar paquetes pendientes
-    int pending_packets = 0;
+    pending_packets = 0;
     foreach (packet_db[key]) begin
       if (!packet_db[key].received) begin
         pending_packets++;
