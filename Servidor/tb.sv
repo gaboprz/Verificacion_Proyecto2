@@ -116,11 +116,11 @@ module tb;
   end
 
   // Timeout
-  /*initial begin
-    #5000;
+  initial begin
+    #50000;
     `uvm_info("TB", "Timeout - finalizando simulación", UVM_LOW)
     $finish;
-  end*/
+  end
 
   // Dump de waveforms (opcional)
   initial begin
