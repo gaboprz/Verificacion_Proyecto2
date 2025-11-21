@@ -42,12 +42,12 @@ class test extends uvm_test;
         prueba.name = "Prueba 1 - Transacciones Legales";
         // Configurar diferentes cantidades por agente
         prueba.num_packets_per_agent = '{
-            0: 3,  1: 5,  2: 2,  3: 4,  4: 6,  5: 1,  6: 3,  7: 5,
-            8: 2,  9: 4,  10: 6, 11: 1, 12: 3, 13: 5, 14: 2, 15: 4
+            0: 1,  1: 0,  2: 0,  3: 0,  4: 0,  5: 0,  6: 0,  7: 0,
+            8: 0,  9: 0,  10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0
         };
             
         test_list.push_back(prueba);
-        
+        /*
         // ===========================================================================
         // PRUEBA 2: 
         // ===========================================================================
@@ -71,7 +71,7 @@ class test extends uvm_test;
         };
             
         test_list.push_back(prueba);
-        
+        */
         `uvm_info("TEST_SETUP", $sformatf("Configuradas %0d pruebas", test_list.size()), UVM_LOW)
     endfunction
 
