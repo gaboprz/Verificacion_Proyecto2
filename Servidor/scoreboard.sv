@@ -47,6 +47,10 @@ class mesh_scoreboard extends uvm_scoreboard;
   // ========== NUEVO: Mapeo de puertos esperados ==========
   int exp_port_from_rc[int][int]; // [row][col] -> dev_id esperado
 
+  // Comparación en función egress match
+  bit header_match;
+  bit port_match;
+
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
     ingress_imp = new("ingress_imp", this);
@@ -176,8 +180,8 @@ class mesh_scoreboard extends uvm_scoreboard;
     end
     
     // ========== COMPARACIÓN COMPLETA ==========
-    bit header_match = 1;
-    bit port_match = 1;
+    header_match = 1;
+    port_match = 1;
     
     // Verificar headers
     if (expected.target_row != pkt.target_row) begin
