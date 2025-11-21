@@ -7,7 +7,7 @@ class gen_mesh_seq extends uvm_sequence #(mesh_pkt);
 
   rand int num;  
   
-  constraint c1 { num inside {[2:5]}; }
+  constraint c1 { num inside {[2:50]}; }
 
   function new(string name="gen_mesh_seq"); 
     super.new(name); 
