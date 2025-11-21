@@ -29,6 +29,6 @@
 `define BROADCAST  8'hFF
 
 // Profundidad de FIFOs
-`define FIFO_DEPTH 4
+`define FIFO_DEPTH 16
 
 `endif // MESH_DEFINES_SVH

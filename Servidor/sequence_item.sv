@@ -23,6 +23,11 @@ class mesh_pkt extends uvm_sequence_item;
   constraint c_row { target_row inside {[0:`ROWS-1]}; }
   constraint c_col { target_col inside {[0:`COLUMNS-1]}; }
 
+  constraint c_external_device {
+    (target_row == 0) || (target_row == `ROWS-1) || 
+    (target_col == 0) || (target_col == `COLUMNS-1);
+  }
+
   function new(string name="mesh_pkt"); super.new(name); endfunction
 
   function void pack_bits();
