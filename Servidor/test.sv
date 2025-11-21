@@ -2,22 +2,77 @@
 // Se define el test
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class base_test extends uvm_test;
-    `uvm_component_utils(base_test)
+class test extends uvm_test;
+    `uvm_component_utils(test)
 
     mesh_env env;
-    gen_mesh_seq seq;
     
-    function new(string name = "base_test", uvm_component parent=null);
+    // Estructura para configurar cada prueba
+    typedef struct {
+        string name;
+        int num_packets_per_agent[`NUM_DEVS];
+    } test_config_t;
+    
+    // Lista de pruebas a ejecutar
+    test_config_t test_list[$];
+    
+    function new(string name = "test", uvm_component parent=null);
         super.new(name, parent);
+        
+        // INICIALIZAR LA LISTA DE PRUEBAS VACÍA
+        // Las pruebas se añadirán en build_phase o run_phase
     endfunction
 
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
         env = mesh_env::type_id::create("env", this);
-        
-        // Configurar el número de dispositivos
         uvm_config_db#(int unsigned)::set(this, "env", "NUM_DEVS", `NUM_DEVS);
+        
+        // CONFIGURAR LAS PRUEBAS QUE QUEREMOS EJECUTAR
+        setup_test_scenarios();
+    endfunction
+
+    // FUNCIÓN PARA CONFIGURAR DIFERENTES ESCENARIOS DE PRUEBA
+    virtual function void setup_test_scenarios();
+        test_config_t prueba;
+        
+        // ===========================================================================
+        // PRUEBA 1: 
+        // ===========================================================================
+        prueba.name = "Prueba 1 - Transacciones Legales";
+        // Configurar diferentes cantidades por agente
+        prueba.num_packets_per_agent = '{
+            0: 3,  1: 5,  2: 2,  3: 4,  4: 6,  5: 1,  6: 3,  7: 5,
+            8: 2,  9: 4,  10: 6, 11: 1, 12: 3, 13: 5, 14: 2, 15: 4
+        };
+            
+        test_list.push_back(prueba);
+        
+        // ===========================================================================
+        // PRUEBA 2: 
+        // ===========================================================================
+        prueba.name = "Prueba 2 - Mixto Legal/Ilegal";
+        // Configurar cantidades
+        prueba.num_packets_per_agent = '{
+            0: 4,  1: 4,  2: 4,  3: 4,  4: 4,  5: 4,  6: 4,  7: 4,
+            8: 3,  9: 3,  10: 3, 11: 3, 12: 3, 13: 3, 14: 3, 15: 3
+        };
+            
+        test_list.push_back(prueba);
+        
+        // ===========================================================================
+        // PRUEBA 3: 
+        // ===========================================================================
+        prueba.name = "Prueba 3 - Targets Específicos";
+        // Menos paquetes pero con targets controlados
+        prueba.num_packets_per_agent = '{
+            0: 2,  1: 2,  2: 2,  3: 2,  4: 2,  5: 2,  6: 2,  7: 2,
+            8: 2,  9: 2,  10: 2, 11: 2, 12: 2, 13: 2, 14: 2, 15: 2
+        };
+            
+        test_list.push_back(prueba);
+        
+        `uvm_info("TEST_SETUP", $sformatf("Configuradas %0d pruebas", test_list.size()), UVM_LOW)
     endfunction
 
     virtual function void end_of_elaboration_phase(uvm_phase phase);
@@ -25,130 +80,51 @@ class base_test extends uvm_test;
         uvm_top.print_topology();
     endfunction
 
+    // TAREA PRINCIPAL - EJECUCIÓN SECUENCIAL DE PRUEBAS
     virtual task run_phase(uvm_phase phase);
         phase.raise_objection(this);
         
-        `uvm_info("TEST", "Iniciando test CONCURRENTE con 16 agentes", UVM_LOW)
+        `uvm_info("TEST", "Iniciando suite de pruebas avanzadas", UVM_LOW)
         
-        // EJECUCIÓN CONCURRENTE DE TODOS LOS AGENTES
-        fork
-            begin : agent_0
-                gen_mesh_seq seq0 = gen_mesh_seq::type_id::create("seq0");
-                seq0.num = 3;
-                seq0.start(env.agents[0].s0);
-                `uvm_info("TEST", $sformatf("Agente 0 completado: %0d paquetes", seq0.num), UVM_MEDIUM)
-            end
+        // EJECUTAR CADA PRUEBA EN SECUENCIA
+        foreach (test_list[i]) begin
+            `uvm_info("TEST", $sformatf("=== INICIANDO %s ===", test_list[i].name), UVM_LOW)
+            run_single_test(test_list[i]);
+            `uvm_info("TEST", $sformatf("=== COMPLETADA %s ===", test_list[i].name), UVM_LOW)
             
-            begin : agent_1
-                gen_mesh_seq seq1 = gen_mesh_seq::type_id::create("seq1");
-                seq1.num = 5;
-                seq1.start(env.agents[1].s0);
-                `uvm_info("TEST", $sformatf("Agente 1 completado: %0d paquetes", seq1.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_2
-                gen_mesh_seq seq2 = gen_mesh_seq::type_id::create("seq2");
-                seq2.num = 4;
-                seq2.start(env.agents[2].s0);
-                `uvm_info("TEST", $sformatf("Agente 2 completado: %0d paquetes", seq2.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_3
-                gen_mesh_seq seq3 = gen_mesh_seq::type_id::create("seq3");
-                seq3.num = 4;
-                seq3.start(env.agents[3].s0);
-                `uvm_info("TEST", $sformatf("Agente 3 completado: %0d paquetes", seq3.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_4
-                gen_mesh_seq seq4 = gen_mesh_seq::type_id::create("seq4");
-                seq4.num = 4;
-                seq4.start(env.agents[4].s0);
-                `uvm_info("TEST", $sformatf("Agente 4 completado: %0d paquetes", seq4.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_5
-                gen_mesh_seq seq5 = gen_mesh_seq::type_id::create("seq5");
-                seq5.num = 4;
-                seq5.start(env.agents[5].s0);
-                `uvm_info("TEST", $sformatf("Agente 5 completado: %0d paquetes", seq5.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_6
-                gen_mesh_seq seq6 = gen_mesh_seq::type_id::create("seq6");
-                seq6.num = 4;
-                seq6.start(env.agents[6].s0);
-                `uvm_info("TEST", $sformatf("Agente 6 completado: %0d paquetes", seq6.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_7
-                gen_mesh_seq seq7 = gen_mesh_seq::type_id::create("seq7");
-                seq7.num = 4;
-                seq7.start(env.agents[7].s0);
-                `uvm_info("TEST", $sformatf("Agente 7 completado: %0d paquetes", seq7.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_8
-                gen_mesh_seq seq8 = gen_mesh_seq::type_id::create("seq8");
-                seq8.num = 4;
-                seq8.start(env.agents[8].s0);
-                `uvm_info("TEST", $sformatf("Agente 8 completado: %0d paquetes", seq8.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_9
-                gen_mesh_seq seq9 = gen_mesh_seq::type_id::create("seq9");
-                seq9.num = 4;
-                seq9.start(env.agents[9].s0);
-                `uvm_info("TEST", $sformatf("Agente 9 completado: %0d paquetes", seq9.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_10
-                gen_mesh_seq seq10 = gen_mesh_seq::type_id::create("seq10");
-                seq10.num = 4;
-                seq10.start(env.agents[10].s0);
-                `uvm_info("TEST", $sformatf("Agente 10 completado: %0d paquetes", seq10.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_11
-                gen_mesh_seq seq11 = gen_mesh_seq::type_id::create("seq11");
-                seq11.num = 4;
-                seq11.start(env.agents[11].s0);
-                `uvm_info("TEST", $sformatf("Agente 11 completado: %0d paquetes", seq11.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_12
-                gen_mesh_seq seq12 = gen_mesh_seq::type_id::create("seq12");
-                seq12.num = 4;
-                seq12.start(env.agents[12].s0);
-                `uvm_info("TEST", $sformatf("Agente 12 completado: %0d paquetes", seq12.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_13
-                gen_mesh_seq seq13 = gen_mesh_seq::type_id::create("seq13");
-                seq13.num = 4;
-                seq13.start(env.agents[13].s0);
-                `uvm_info("TEST", $sformatf("Agente 13 completado: %0d paquetes", seq13.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_14
-                gen_mesh_seq seq14 = gen_mesh_seq::type_id::create("seq14");
-                seq14.num = 4;
-                seq14.start(env.agents[14].s0);
-                `uvm_info("TEST", $sformatf("Agente 14 completado: %0d paquetes", seq14.num), UVM_MEDIUM)
-            end
-            
-            begin : agent_15
-                gen_mesh_seq seq15 = gen_mesh_seq::type_id::create("seq15");
-                seq15.num = 4;
-                seq15.start(env.agents[15].s0);
-                `uvm_info("TEST", $sformatf("Agente 15 completado: %0d paquetes", seq15.num), UVM_MEDIUM)
-            end
-        join // Espera a que TODOS los agentes terminen
-
-        // Esperar un poco más para que los últimos paquetes se propaguen
-        #1000;
+            // Pequeña pausa entre pruebas
+            #500;
+        end
         
-        `uvm_info("TEST", "Test concurrente completado - TODOS los agentes terminaron", UVM_LOW)
+        `uvm_info("TEST", "Todas las pruebas completadas exitosamente", UVM_LOW)
         phase.drop_objection(this);
+    endtask
+
+    // TAREA PARA EJECUTAR UNA PRUEBA INDIVIDUAL
+    virtual task run_single_test(test_config_t configuration);
+        fork
+            for (int agent_id = 0; agent_id < `NUM_DEVS; agent_id++) begin
+                automatic int agent = agent_id;
+                if (configuration.num_packets_per_agent[agent] > 0) begin
+                    begin
+                        gen_mesh_seq seq = gen_mesh_seq::type_id::create($sformatf("seq_%0d", agent));
+                        // Configurar la secuencia según la prueba
+                        seq.num = configuration.num_packets_per_agent[agent];
+                        
+                        seq.start(env.agents[agent].s0);
+                        
+                        `uvm_info("TEST", 
+                            $sformatf("Agente %0d completado: %0d paquetes", 
+                            agent, seq.num, 
+                            UVM_MEDIUM)
+                    end
+                end else begin
+                    `uvm_info("TEST", $sformatf("Agente %0d: 0 paquetes - omitido", agent), UVM_HIGH)
+                end
+            end
+        join // Espera a que TODOS los agentes de esta prueba terminen
+        
+        // Esperar a que los paquetes se propaguen completamente
+        #1000;
     endtask
 endclass
