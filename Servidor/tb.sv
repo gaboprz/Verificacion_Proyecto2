@@ -112,7 +112,7 @@ module tb;
 
   // <<< AÑADIR ESTO >>>
   initial begin
-    run_test("base_test");   // nombre de tu clase de test
+    run_test("test");   // nombre de tu clase de test
   end
 
   // Timeout
