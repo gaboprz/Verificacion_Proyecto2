@@ -138,7 +138,7 @@ class mesh_scoreboard extends uvm_scoreboard;
       string key = $sformatf("%0h", pkt.payload);
       
       // Si el paquete del monitor tiene match en el driver, procesarlo
-      if (by_key.exists(key) && by_key[key].size() > 0) {
+      if (by_key.exists(key) && by_key[key].size() > 0) begin
         exp_t expected;
         longint latency;
 
@@ -197,7 +197,6 @@ class mesh_scoreboard extends uvm_scoreboard;
           `uvm_info("SCB_SYNC", "¡TODOS los paquetes han salido de la malla! Disparando evento...", UVM_LOW)
           test_completion_event.trigger();
         end
-      }
       end else begin
         // No hay match todavía, mantener en buffer
         i++;
