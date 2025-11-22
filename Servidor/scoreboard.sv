@@ -84,14 +84,14 @@ class mesh_scoreboard extends uvm_scoreboard;
   // -----------------------------------
   function void write_egress(mesh_pkt pkt);
     string key = $sformatf("%0h", pkt.payload);
-
+    exp_t expected;
     if (!by_key.exists(key) || by_key[key].size() == 0) begin
       `uvm_error("SCB_OUT",
         $sformatf("Salida inesperada: payload=0x%0h (cola vacía)", pkt.payload))
       return;
     end
 
-    exp_t expected = by_key[key].pop_front();
+    expected = by_key[key].pop_front();
 
     // Comparar header del paquete
     if (expected.target_row != pkt.target_row ||
