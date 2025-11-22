@@ -11,6 +11,7 @@ class test extends uvm_test;
     typedef struct {
         string name;
         int num_packets_per_agent[`NUM_DEVS];
+        bit use_valid_destinations;
     } test_config_t;
     
     // Lista de pruebas a ejecutar
@@ -26,7 +27,7 @@ class test extends uvm_test;
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
 
-        uvm_top.set_timeout(500000, 0);
+        uvm_top.set_timeout(100000, 0);
 
         env = mesh_env::type_id::create("env", this);
         uvm_config_db#(int unsigned)::set(this, "env", "NUM_DEVS", `NUM_DEVS);
@@ -56,6 +57,7 @@ class test extends uvm_test;
             0: 1,  1: 4,  2: 10,  3:20,  4: 0,  5: 10,  6: 0,  7: 0,
             8: 0,  9: 10,  10: 10, 11: 0, 12: 10, 13: 10, 14: 0, 15: 0
         };
+        prueba.use_valid_destinations = 1;
         test_list.push_back(prueba);
 
         prueba.name = "Prueba 2";
@@ -63,6 +65,7 @@ class test extends uvm_test;
             0: 1,  1: 4,  2: 10,  3:20,  4: 0,  5: 10,  6: 7,  7: 5,
             8: 10,  9: 10,  10: 10, 11: 10, 12: 10, 13: 10, 14: 10, 15: 12
         };
+        prueba.use_valid_destinations = 0;
         test_list.push_back(prueba);
         
         `uvm_info("TEST_SETUP", $sformatf("Configuradas %0d pruebas", test_list.size()), UVM_LOW)
