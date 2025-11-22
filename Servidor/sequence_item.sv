@@ -1,35 +1,30 @@
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Se define el sequence item
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 class mesh_pkt extends uvm_sequence_item;
   `uvm_object_utils(mesh_pkt)
 
-  // Campos del paquete
+  // Header/payload
   rand bit [7:0]            nxt_jump;
   rand bit [3:0]            target_row;
   rand bit [3:0]            target_col;
   rand bit                  mode;
   rand bit [`PAYLOAD_W-1:0] payload;
 
+  // >>> NUEVO: jitter entre envíos (en ciclos de clk)
+  rand int unsigned         idle_cycles;
+
   // Vector listo para el DUT
   bit [`PKG_SZ-1:0]         raw_pkt;
 
-  // (nuevo) puerto de salida observado por el monitor (no rand)
+  // Observación (monitor)
   int unsigned              egress_id;
 
   // Constraints
   constraint c_nxt_no_bcast { nxt_jump != 8'hFF; }
-  //constraint c_row { target_row inside {[0:`ROWS-1]}; }
-  //constraint c_col { target_col inside {[0:`COLUMNS-1]}; }
+  constraint c_row { target_row inside {[0:`ROWS-1]}; }
+  constraint c_col { target_col inside {[0:`COLUMNS-1]}; }
 
-  constraint c_external_device_row {
-    (target_row == 0) || (target_row == `ROWS-1);
-  }
-
-  constraint c_external_device_column {
-    (target_col == 0) || (target_col == `COLUMNS-1);
-  }
+  // >>> Rango simple y seguro para la holgura entre envíos
+  //     (ajústalo a gusto o déjalo así)
+  constraint c_idle { idle_cycles inside {[0:20]}; }
 
   function new(string name="mesh_pkt"); super.new(name); endfunction
 
@@ -44,11 +39,11 @@ class mesh_pkt extends uvm_sequence_item;
   endfunction
 
   function void post_randomize(); 
-  pack_bits(); 
+    pack_bits(); 
   endfunction
 
   function string convert2str();
-    return $sformatf("to[%0d,%0d] mode=%0b payload=0x%0h egress_id=%0d",
-                     target_row, target_col, mode, payload, egress_id);
+    return $sformatf("to[%0d,%0d] mode=%0b payload=0x%0h idle=%0dcy egress_id=%0d",
+                     target_row, target_col, mode, payload, idle_cycles, egress_id);
   endfunction
 endclass

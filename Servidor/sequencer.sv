@@ -1,17 +1,25 @@
-class mesh_sequencer extends uvm_sequencer #(mesh_pkt);
-  `uvm_component_utils(mesh_sequencer)
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Se define el sequencer
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-  virtual router_external_if vif;
-  int device_id;
+class gen_mesh_seq extends uvm_sequence #(mesh_pkt);
+  `uvm_object_utils(gen_mesh_seq)
 
-  function new(string name="mesh_sequencer", uvm_component parent=null);
-    super.new(name,parent);
+  rand int num;  
+  
+  constraint c1 { num inside {[2:50]}; }
+
+  function new(string name="gen_mesh_seq"); 
+    super.new(name); 
   endfunction
 
-  function void build_phase(uvm_phase phase);
-    super.build_phase(phase);
-    string key = $sformatf("ext_if[%0d]", device_id);
-    if (!uvm_config_db#(virtual router_external_if)::get(this, "", key, vif))
-      `uvm_fatal("SEQ", $sformatf("No se obtuvo vif con clave %s", key))
-  endfunction
+  virtual task body();
+    for (int i = 0; i < num; i++) begin
+      mesh_pkt m_item = mesh_pkt::type_id::create($sformatf("m_item_%0d", i));
+      start_item(m_item);
+      void'(m_item.randomize());
+      `uvm_info("SEQ", $sformatf("Generate: %s", m_item.convert2str()), UVM_LOW)
+      finish_item(m_item);
+    end
+  endtask
 endclass
