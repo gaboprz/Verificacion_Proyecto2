@@ -50,17 +50,10 @@ class test extends uvm_test;
         // PRUEBA 1: Solo 1 paquete en agente 1
         prueba.name = "Prueba 1 - Un paquete en agente 1";
         prueba.num_packets_per_agent = '{
-            0: 0,  1: 1,  2: 0,  3: 0,  4: 0,  5: 0,  6: 0,  7: 0,
+            0: 1,  1: 0,  2: 0,  3: 0,  4: 0,  5: 0,  6: 0,  7: 0,
             8: 0,  9: 0,  10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0
         };
         test_list.push_back(prueba);
-
-        /*prueba.name = "Prueba 2 - Un paquete en agente 1";
-        prueba.num_packets_per_agent = '{
-            0: 10,  1: 1,  2: 10,  3: 6,  4: 5,  5: 4,  6: 9,  7: 0,
-            8: 0,  9: 0,  10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0
-        };
-        test_list.push_back(prueba);*/
         
         `uvm_info("TEST_SETUP", $sformatf("Configuradas %0d pruebas", test_list.size()), UVM_LOW)
     endfunction
@@ -70,13 +63,13 @@ class test extends uvm_test;
         uvm_top.print_topology();
     endfunction
 
-    // TAREA PRINCIPAL - MODIFICADA para sincronización
+    // TAREA PRINCIPAL - MODIFICADA para mejor sincronización
     virtual task run_phase(uvm_phase phase);
         phase.raise_objection(this);
         
         `uvm_info("TEST", "Iniciando suite de pruebas avanzadas", UVM_LOW)
         
-        // ========== NUEVO: Informar al scoreboard cuántos paquetes esperamos ==========
+        // ========== NUEVO: Informar al scoreboard cuántos paquetes esperamos que SALGAN ==========
         env.scb.set_expected_packet_count(total_packets_to_send);
         
         // EJECUTAR CADA PRUEBA EN SECUENCIA
@@ -86,11 +79,14 @@ class test extends uvm_test;
             `uvm_info("TEST", $sformatf("=== ENVÍO COMPLETADO %s ===", test_list[i].name), UVM_LOW)
         end
         
-        // ========== NUEVO: Esperar a que scoreboard confirme recepción de TODOS los paquetes ==========
-        `uvm_info("TEST_SYNC", "Esperando confirmación del scoreboard...", UVM_LOW)
+        // ========== CORRECCIÓN: Esperar a que scoreboard confirme que TODOS los paquetes SALIERON ==========
+        `uvm_info("TEST_SYNC", "Esperando a que TODOS los paquetes SALGAN de la malla...", UVM_LOW)
         env.scb.wait_for_completion();
         
-        `uvm_info("TEST", "Todas las pruebas completadas exitosamente", UVM_LOW)
+        // Pequeña pausa adicional para asegurar que todo se estabilice
+        #1000;
+        
+        `uvm_info("TEST", "Todas las pruebas completadas exitosamente - TODOS los paquetes salieron", UVM_LOW)
         phase.drop_objection(this);
     endtask
 

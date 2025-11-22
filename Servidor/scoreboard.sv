@@ -27,14 +27,16 @@ class mesh_scoreboard extends uvm_scoreboard;
   bit check_port_exact = 0;
   int exp_port_from_rc[int][int]; // [row][col] -> dev_id esperado
 
-  // ========== CORREGIDO: Sincronización con test (MANTENIENDO uvm_event) ==========
+  // ========== MODIFICADO: Sincronización basada en paquetes QUE SALEN ==========
   // Contadores para sincronización
-  int total_packets_received = 0;
+  int total_packets_received_by_monitor = 0;  // Paquetes que SALIERON del DUT
   int expected_total_packets = 0;
+  
   // --- Estadísticas de latencia por terminal ---
   longint sum_latency_per_dev[`NUM_DEVS];
   int     count_per_dev[`NUM_DEVS];
-  // Evento para notificar al test (MANTENIENDO uvm_event)
+  
+  // Evento para notificar al test
   uvm_event test_completion_event;
 
   function new(string name="mesh_scoreboard", uvm_component parent=null);
@@ -44,27 +46,27 @@ class mesh_scoreboard extends uvm_scoreboard;
     test_completion_event = new("test_completion_event");
   endfunction
 
-  // ========== CORREGIDO: Método para que test configure expectativas ==========
+  // ========== MODIFICADO: Método para que test configure expectativas ==========
   function void set_expected_packet_count(int expected_count);
     expected_total_packets = expected_count;
-    total_packets_received = 0;
-    `uvm_info("SCB_SYNC", $sformatf("Expecting %0d total packets from test", expected_total_packets), UVM_LOW)
+    total_packets_received_by_monitor = 0;
+    `uvm_info("SCB_SYNC", $sformatf("Expecting %0d total packets to EXIT the mesh", expected_total_packets), UVM_LOW)
   endfunction
 
-  // ========== CORREGIDO: Método para que test espere completación ==========
+  // ========== MODIFICADO: Método para que test espere completación ==========
   task wait_for_completion();
-    `uvm_info("SCB_SYNC", $sformatf("Waiting for completion: %0d/%0d packets", 
-              total_packets_received, expected_total_packets), UVM_LOW)
+    `uvm_info("SCB_SYNC", $sformatf("Waiting for completion: %0d/%0d packets EXITED mesh", 
+              total_packets_received_by_monitor, expected_total_packets), UVM_LOW)
     
-    // CORRECCIÓN: Usar wait_trigger() en lugar de @(posedge)
-    if (total_packets_received < expected_total_packets) begin
+    // Esperar hasta que TODOS los paquetes hayan SALIDO de la malla
+    while (total_packets_received_by_monitor < expected_total_packets) begin
       test_completion_event.wait_trigger();
     end
     
-    `uvm_info("SCB_SYNC", "All expected packets processed by scoreboard", UVM_LOW)
+    `uvm_info("SCB_SYNC", "All expected packets have EXITED the mesh", UVM_LOW)
   endtask
 
-  // DRIVER → SCB - CORREGIDO para contar paquetes
+  // DRIVER → SCB - SOLO registra paquetes esperados, NO cuenta para sincronización
   function void write_ingress(mesh_pkt tr);
     string key = $sformatf("%0h", tr.payload);
     exp_t e; 
@@ -74,20 +76,12 @@ class mesh_scoreboard extends uvm_scoreboard;
     e.t_submit = $time;
     by_key[key].push_back(e);
     
-    // ========== CORREGIDO: Contar paquete recibido ==========
-    total_packets_received++;
     `uvm_info("SCB_IN",
-      $sformatf("Esperado: payload=0x%0h -> r=%0d c=%0d m=%0b (recibidos=%0d/esperados=%0d)",
-                tr.payload, e.target_row, e.target_col, e.mode, 
-                total_packets_received, expected_total_packets), UVM_LOW)
-    
-    // CORRECCIÓN: Usar trigger() en lugar de -> 
-    if (total_packets_received >= expected_total_packets && expected_total_packets > 0) begin
-      test_completion_event.trigger();
-    end
+      $sformatf("Paquete ENTRÓ a la malla: payload=0x%0h -> r=%0d c=%0d m=%0b",
+                tr.payload, e.target_row, e.target_col, e.mode), UVM_LOW)
   endfunction
 
-  // MONITOR → SCB
+  // MONITOR → SCB - MODIFICADO: Contar paquetes cuando SALEN y calcular latencia
   function void write_egress(mesh_pkt pkt);
     string key = $sformatf("%0h", pkt.payload);
     exp_t expected;
@@ -127,7 +121,8 @@ class mesh_scoreboard extends uvm_scoreboard;
                       pkt.payload, exp_dev, pkt.egress_id, pkt.target_row, pkt.target_col))
       end
     end
-    // calcular latencia
+
+    // ========== NUEVO: Calcular latencia ==========
     latency = $time - expected.t_submit;
 
     // acumular por terminal
@@ -140,6 +135,17 @@ class mesh_scoreboard extends uvm_scoreboard;
                 pkt.egress_id, latency, pkt.payload),
       UVM_LOW)
 
+    // ========== CORRECCIÓN: Contar paquete cuando SALE del DUT ==========
+    total_packets_received_by_monitor++;
+    `uvm_info("SCB_SYNC", 
+      $sformatf("Paquete SALIÓ de la malla: %0d/%0d completados", 
+                total_packets_received_by_monitor, expected_total_packets), UVM_MEDIUM)
+    
+    // Notificar al test cuando TODOS los paquetes hayan SALIDO
+    if (total_packets_received_by_monitor >= expected_total_packets && expected_total_packets > 0) begin
+      `uvm_info("SCB_SYNC", "¡TODOS los paquetes han salido de la malla!", UVM_LOW)
+      test_completion_event.trigger();
+    end
   endfunction
   
   virtual function void check_phase(uvm_phase phase);
@@ -152,6 +158,7 @@ class mesh_scoreboard extends uvm_scoreboard;
                     by_key[key].size(), key));
       end
     end
+    
     // --- Reporte de latencias promedio ---
     `uvm_info("LAT_SUMMARY", "===== LATENCY REPORT =====", UVM_NONE)
 
@@ -169,7 +176,6 @@ class mesh_scoreboard extends uvm_scoreboard;
           $sformatf("Terminal %0d -> Sin paquetes recibidos", d),
           UVM_NONE)
       end
-end
-
+    end
   endfunction
 endclass
