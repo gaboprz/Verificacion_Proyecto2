@@ -53,8 +53,8 @@ class test extends uvm_test;
         // PRUEBA 1: Solo 1 paquete en agente 1
         prueba.name = "Prueba 1 - Un paquete en agente 1";
         prueba.num_packets_per_agent = '{
-            0: 1,  1: 4,  2: 10,  3:20,  4: 10,  5: 10,  6: 10,  7: 10,
-            8: 10,  9: 10,  10: 10, 11: 0, 12: 10, 13: 10, 14: 10, 15: 10
+            0: 1,  1: 4,  2: 2,  3:3,  4: 2,  5: 5,  6: 4,  7: 3,
+            8: 5,  9: 5,  5: 2, 11: 0, 12: 2, 13: 2, 14: 2, 15: 1
         };
         test_list.push_back(prueba);
         
