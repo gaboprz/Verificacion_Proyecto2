@@ -64,6 +64,12 @@ class test extends uvm_test;
             8: 5,  9: 5,  10: 2, 11: 10, 12: 12, 13: 21, 14: 2, 15: 1
         };
         test_list.push_back(prueba);
+        prueba.name = "Prueba 2 - Un paquete en agente 1";
+        prueba.num_packets_per_agent = '{
+            0: 11,  1: 41,  2: 21,  3:31,  4: 2,  5: 5,  6: 4,  7: 3,
+            8: 5,  9: 5,  10: 2, 11: 10, 12: 12, 13: 21, 14: 2, 15: 1
+        };
+        test_list.push_back(prueba);
         
         `uvm_info("TEST_SETUP", $sformatf("Configuradas %0d pruebas", test_list.size()), UVM_LOW)
     endfunction
