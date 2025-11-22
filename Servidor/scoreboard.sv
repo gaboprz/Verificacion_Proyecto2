@@ -31,7 +31,9 @@ class mesh_scoreboard extends uvm_scoreboard;
   // Contadores para sincronización
   int total_packets_received = 0;
   int expected_total_packets = 0;
-  
+  // --- Estadísticas de latencia por terminal ---
+  longint sum_latency_per_dev[`NUM_DEVS];
+  int     count_per_dev[`NUM_DEVS];
   // Evento para notificar al test (MANTENIENDO uvm_event)
   uvm_event test_completion_event;
 
@@ -124,6 +126,19 @@ class mesh_scoreboard extends uvm_scoreboard;
                       pkt.payload, exp_dev, pkt.egress_id, pkt.target_row, pkt.target_col))
       end
     end
+    // calcular latencia
+    longint latency = $time - expected.t_submit;
+
+    // acumular por terminal
+    sum_latency_per_dev[pkt.egress_id] += latency;
+    count_per_dev[pkt.egress_id]++;
+
+    // imprimir latencia individual (opcional)
+    `uvm_info("LAT",
+      $sformatf("Latency dev[%0d] = %0d ns (payload=0x%0h)",
+                pkt.egress_id, latency, pkt.payload),
+      UVM_LOW)
+
   endfunction
   
   virtual function void check_phase(uvm_phase phase);
@@ -136,5 +151,24 @@ class mesh_scoreboard extends uvm_scoreboard;
                     by_key[key].size(), key));
       end
     end
+    // --- Reporte de latencias promedio ---
+    `uvm_info("LAT_SUMMARY", "===== LATENCY REPORT =====", UVM_NONE)
+
+    for (int d = 0; d < `NUM_DEVS; d++) begin
+      if (count_per_dev[d] > 0) begin
+        longint avg = sum_latency_per_dev[d] / count_per_dev[d];
+
+        `uvm_info("LAT_SUMMARY",
+          $sformatf("Terminal %0d -> Avg latency = %0d ns (samples=%0d)",
+                    d, avg, count_per_dev[d]),
+          UVM_NONE)
+      end
+      else begin
+        `uvm_info("LAT_SUMMARY",
+          $sformatf("Terminal %0d -> Sin paquetes recibidos", d),
+          UVM_NONE)
+      end
+end
+
   endfunction
 endclass
