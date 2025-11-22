@@ -26,8 +26,8 @@ class test extends uvm_test;
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
 
-        uvm_config_db#(int)::set(this, "*", "timeout", 200000);
-        
+        uvm_top.set_timeout(500000, 0);
+
         env = mesh_env::type_id::create("env", this);
         uvm_config_db#(int unsigned)::set(this, "env", "NUM_DEVS", `NUM_DEVS);
         setup_test_scenarios();
