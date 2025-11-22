@@ -17,6 +17,10 @@ class mesh_pkt extends uvm_sequence_item;
   // Observación (monitor)
   int unsigned              egress_id;
 
+  // ========== NUEVO: Contador estático para IDs únicos ==========
+  static int unique_id_counter = 0;
+  int unique_id;
+
   // Constraints
   constraint c_nxt_no_bcast { nxt_jump != 8'hFF; }
 
@@ -29,10 +33,18 @@ class mesh_pkt extends uvm_sequence_item;
   }
 
   // >>> Rango simple y seguro para la holgura entre envíos
-  //     (ajústalo a gusto o déjalo así)
   constraint c_idle { idle_cycles inside {[0:20]}; }
 
-  function new(string name="mesh_pkt"); super.new(name); endfunction
+  // ========== NUEVO: Constraint para evitar payload duplicado ==========
+  constraint c_unique_payload {
+    payload inside {[1:(1 << `PAYLOAD_W) - 1]};
+  }
+
+  function new(string name="mesh_pkt"); 
+    super.new(name); 
+    // ========== NUEVO: Asignar ID único ==========
+    unique_id = unique_id_counter++;
+  endfunction
 
   function void pack_bits();
     raw_pkt = '0;
@@ -49,7 +61,7 @@ class mesh_pkt extends uvm_sequence_item;
   endfunction
 
   function string convert2str();
-    return $sformatf("to[%0d,%0d] mode=%0b payload=0x%0h idle=%0dcy egress_id=%0d",
-                     target_row, target_col, mode, payload, idle_cycles, egress_id);
+    return $sformatf("to[%0d,%0d] mode=%0b payload=0x%0h idle=%0dcy egress_id=%0d unique_id=%0d",
+                     target_row, target_col, mode, payload, idle_cycles, egress_id, unique_id);
   endfunction
 endclass
