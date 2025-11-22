@@ -7,7 +7,7 @@ class external_agent extends uvm_agent;
 
   mesh_driver               d0;
   monitor                   m0;
-  uvm_sequencer #(mesh_pkt) s0;
+  uvm_sequencer             s0;
 
   int device_id;
 
@@ -17,11 +17,13 @@ class external_agent extends uvm_agent;
 
   virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
-    s0 = uvm_sequencer#(mesh_pkt)::type_id::create($sformatf("s0_%0d", device_id), this);
-    d0 = mesh_driver              ::type_id::create($sformatf("d0_%0d", device_id), this);
-    m0 = monitor                  ::type_id::create($sformatf("m0_%0d", device_id), this);
+    s0 = mesh_sequencer::type_id::create($sformatf("s0_%0d", device_id), this);
+    d0 = mesh_driver   ::type_id::create($sformatf("d0_%0d", device_id), this);
+    m0 = monitor       ::type_id::create($sformatf("m0_%0d", device_id), this);
+
     d0.device_id = device_id;
     m0.device_id = device_id;
+    s0.device_id = device_id;   // <— IMPORTANTE
   endfunction
 
   virtual function void connect_phase(uvm_phase phase);

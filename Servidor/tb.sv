@@ -16,14 +16,14 @@ import uvm_pkg::*;
 
 // Componentes UVM
 `include "sequence_item.sv"
-`include "sequencer.sv"
+`include "sequence.sv"
 `include "driver.sv"
 `include "monitor.sv"
 `include "agent.sv"
 `include "scoreboard.sv"
 `include "env.sv"
 `include "test.sv"
-
+`include "sequencer.sv"
 // DUT
 `include "Router_library.sv"
 
