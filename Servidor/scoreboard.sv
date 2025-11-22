@@ -34,6 +34,7 @@ class mesh_scoreboard extends uvm_scoreboard;
   // ========== MODIFICADO: Sincronización basada en paquetes QUE SALEN ==========
   // Contadores para sincronización
   int total_packets_received_by_monitor = 0;  // Paquetes que SALIERON del DUT
+  int total_packets_received_by_driver = 0;   // ========== NUEVO: Paquetes que ENTRARON al DUT ==========
   int expected_total_packets = 0;
   
   // --- Estadísticas de latencia por terminal ---
@@ -56,7 +57,24 @@ class mesh_scoreboard extends uvm_scoreboard;
   function void set_expected_packet_count(int expected_count);
     expected_total_packets = expected_count;
     total_packets_received_by_monitor = 0;
+    total_packets_received_by_driver = 0;  // ========== NUEVO: Reset contador driver ==========
     `uvm_info("SCB_SYNC", $sformatf("Expecting %0d total packets to EXIT the mesh", expected_total_packets), UVM_LOW)
+  endfunction
+
+  // ========== NUEVO: Método para consultar progreso actual ==========
+  function int get_current_progress();
+    return total_packets_received_by_monitor;
+  endfunction
+
+  // ========== NUEVO: Método para consultar paquetes recibidos por driver ==========
+  function int get_driver_received_count();
+    return total_packets_received_by_driver;
+  endfunction
+
+  // ========== NUEVO: Método para forzar finalización ==========
+  function void force_completion();
+    `uvm_info("SCB_SYNC", "Forzando finalización por timeout", UVM_LOW)
+    test_completion_event.trigger();
   endfunction
 
   // ========== MODIFICADO: Método para que test espere completación ==========
@@ -84,9 +102,12 @@ class mesh_scoreboard extends uvm_scoreboard;
     e.t_submit = $time;
     by_key[key].push_back(e);
     
+    // ========== NUEVO: Contar paquete recibido por driver ==========
+    total_packets_received_by_driver++;
+    
     `uvm_info("SCB_IN",
-      $sformatf("Paquete ENTRÓ a la malla: payload=0x%0h -> r=%0d c=%0d m=%0b (cola_size=%0d)",
-                tr.payload, e.target_row, e.target_col, e.mode, by_key[key].size()), UVM_LOW)
+      $sformatf("Paquete ENTRÓ a la malla: payload=0x%0h -> r=%0d c=%0d m=%0b (cola_size=%0d, driver_total=%0d)",
+                tr.payload, e.target_row, e.target_col, e.mode, by_key[key].size(), total_packets_received_by_driver), UVM_LOW)
     
     // ========== NUEVO: Procesar buffer de monitor después de registrar paquete ==========
     process_monitor_buffer();
@@ -117,7 +138,7 @@ class mesh_scoreboard extends uvm_scoreboard;
       string key = $sformatf("%0h", pkt.payload);
       
       // Si el paquete del monitor tiene match en el driver, procesarlo
-      if (by_key.exists(key) && by_key[key].size() > 0) begin
+      if (by_key.exists(key) && by_key[key].size() > 0) {
         exp_t expected;
         longint latency;
 
@@ -187,11 +208,15 @@ class mesh_scoreboard extends uvm_scoreboard;
     processing_monitor_buffer = 0;
   endfunction
 
-  // MONITOR → SCB - VERSIÓN ANTIGUA (eliminada)
-  // function void write_egress(mesh_pkt pkt) { ... } // ESTA FUNCIÓN YA NO EXISTE
-  
   virtual function void check_phase(uvm_phase phase);
     super.check_phase(phase);
+
+    // ========== NUEVO: Estadísticas completas de paquetes ==========
+    `uvm_info("SCB_STATS", "===== PACKET STATISTICS =====", UVM_NONE)
+    `uvm_info("SCB_STATS", $sformatf("Paquetes ENTRADOS al DUT (driver): %0d", total_packets_received_by_driver), UVM_NONE)
+    `uvm_info("SCB_STATS", $sformatf("Paquetes SALIDOS del DUT (monitor): %0d", total_packets_received_by_monitor), UVM_NONE)
+    `uvm_info("SCB_STATS", $sformatf("Paquetes PERDIDOS en la malla: %0d", 
+              total_packets_received_by_driver - total_packets_received_by_monitor), UVM_NONE)
 
     // Verificar paquetes pendientes en by_key
     foreach (by_key[key]) begin
@@ -215,7 +240,6 @@ class mesh_scoreboard extends uvm_scoreboard;
     for (int d = 0; d < `NUM_DEVS; d++) begin
       if (count_per_dev[d] > 0) begin
         longint avg = sum_latency_per_dev[d] / count_per_dev[d];
-
         `uvm_info("LAT_SUMMARY",
           $sformatf("Terminal %0d -> Avg latency = %0d ns (samples=%0d)",
                     d, avg, count_per_dev[d]),
