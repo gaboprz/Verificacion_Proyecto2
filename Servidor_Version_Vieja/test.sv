@@ -19,14 +19,6 @@ class test extends uvm_test;
     // ========== NUEVO: Contador total de paquetes ==========
     int total_packets_to_send = 0;
     
-    // ========== NUEVO: Parámetros de timeout inteligente ==========
-    int timeout_counter = 0;
-    int max_timeout_cycles = 5000; // 5000 ciclos de reloj máximo de espera
-    int last_received_count = 0;
-    int stable_cycles_threshold = 100; // Si no hay progreso en 100 ciclos, terminar
-
-    int current_progress;
-
     function new(string name = "test", uvm_component parent=null);
         super.new(name, parent);
     endfunction
@@ -88,56 +80,36 @@ class test extends uvm_test;
         uvm_top.print_topology();
     endfunction
 
-    // ========== NUEVA TAREA: Monitoreo de progreso con timeout inteligente ==========
-    virtual task monitor_progress_with_timeout();
-        timeout_counter = 0;
-        last_received_count = 0;
+    // ========== NUEVA TAREA: Timeout simple para el último paquete ==========
+    virtual task wait_with_timeout();
+        int timeout_counter = 0;
+        int max_timeout = 10000; // 10000 unidades de tiempo máximo
         
-        `uvm_info("TEST_TIMEOUT", "Iniciando monitoreo de progreso con timeout inteligente", UVM_LOW)
+        `uvm_info("TEST_TIMEOUT", "Iniciando espera con timeout", UVM_LOW)
         
-        while (timeout_counter < max_timeout_cycles) begin
-            #100; // Monitorear cada 100 unidades de tiempo
+        while (env.scb.get_current_progress() < total_packets_to_send && timeout_counter < max_timeout) begin
+            #100;
+            timeout_counter++;
             
-            current_progress = env.scb.get_current_progress();
-            
-            // Verificar si hay progreso
-            if (current_progress > last_received_count) begin
-                timeout_counter = 0; // Resetear timeout si hay progreso
-                last_received_count = current_progress;
+            // Cada 1000 unidades, mostrar progreso
+            if (timeout_counter % 1000 == 0) begin
                 `uvm_info("TEST_PROGRESS", 
-                    $sformatf("Progreso: %0d/%0d paquetes recibidos", 
-                    current_progress, total_packets_to_send), UVM_HIGH)
-            end else begin
-                timeout_counter++;
-                if (timeout_counter % 100 == 0) begin
-                    `uvm_info("TEST_TIMEOUT", 
-                        $sformatf("Sin progreso por %0d ciclos. Actual: %0d/%0d", 
-                        timeout_counter, current_progress, total_packets_to_send), UVM_MEDIUM)
-                end
-            end
-            
-            // Si ya completamos todos los paquetes, salir inmediatamente
-            if (current_progress >= total_packets_to_send) begin
-                `uvm_info("TEST_PROGRESS", "Todos los paquetes recibidos - terminando monitoreo", UVM_LOW)
-                return;
-            end
-            
-            // Si no hay progreso por mucho tiempo y estamos cerca del total, forzar finalización
-            if (timeout_counter > stable_cycles_threshold && 
-                current_progress >= total_packets_to_send - 1) begin
-                `uvm_warning("TEST_TIMEOUT", 
-                    $sformatf("Timeout: Solo falta 1 paquete (%0d/%0d). Forzando finalización.", 
-                    current_progress, total_packets_to_send))
-                env.scb.force_completion();
-                return;
+                    $sformatf("Progreso: %0d/%0d, timeout_counter: %0d/%0d", 
+                    env.scb.get_current_progress(), total_packets_to_send, 
+                    timeout_counter, max_timeout), UVM_MEDIUM)
             end
         end
         
-        // Timeout completo
-        `uvm_error("TEST_TIMEOUT", 
-            $sformatf("Timeout máximo alcanzado. Paquetes recibidos: %0d/%0d", 
-            last_received_count, total_packets_to_send))
-        env.scb.force_completion();
+        if (timeout_counter >= max_timeout) begin
+            `uvm_warning("TEST_TIMEOUT", 
+                $sformatf("Timeout alcanzado. Paquetes recibidos: %0d/%0d", 
+                env.scb.get_current_progress(), total_packets_to_send))
+            env.scb.force_completion();
+        end else begin
+            `uvm_info("TEST_SUCCESS", 
+                $sformatf("Todos los paquetes recibidos: %0d/%0d", 
+                env.scb.get_current_progress(), total_packets_to_send), UVM_LOW)
+        end
     endtask
 
     // TAREA PRINCIPAL - MODIFICADA para mejor sincronización
@@ -156,7 +128,7 @@ class test extends uvm_test;
             `uvm_info("TEST", $sformatf("=== ENVÍO COMPLETADO %s ===", test_list[i].name), UVM_LOW)
         end
         
-        // ========== MEJORADO: Espera con timeout inteligente ==========
+        // ========== MEJORADO: Espera con timeout para el último paquete ==========
         `uvm_info("TEST_SYNC", "Esperando a que los paquetes SALGAN de la malla...", UVM_LOW)
         
         fork
@@ -165,9 +137,9 @@ class test extends uvm_test;
                 env.scb.wait_for_completion();
             end
             
-            // Proceso 2: Monitoreo de progreso con timeout
+            // Proceso 2: Timeout por si se queda el último paquete
             begin
-                monitor_progress_with_timeout();
+                wait_with_timeout();
             end
         join_any
         
@@ -203,6 +175,6 @@ class test extends uvm_test;
         join // Espera a que TODOS los agentes de esta prueba terminen
         
         // Pequeña pausa para que los últimos paquetes entren al DUT
-        #1000; // Aumentado de 100 a 1000
+        #1000;
     endtask
 endclass

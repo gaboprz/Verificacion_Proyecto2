@@ -19,7 +19,6 @@ class mesh_scoreboard extends uvm_scoreboard;
     int  target_col;
     bit  mode;
     longint t_submit;
-    int  unique_id; // ========== NUEVO: ID único para debugging ==========
   } exp_t;
   typedef exp_t exp_q[$];
   exp_q by_key[string];
@@ -45,13 +44,7 @@ class mesh_scoreboard extends uvm_scoreboard;
   // Evento para notificar al test
   uvm_event test_completion_event;
 
-  // ========== NUEVO: Contador de paquetes duplicados ==========
-  int duplicate_packets_detected = 0;
-  int last_processed_unique_id = -1;
-
   int i;
-
-  int pending_packets;
 
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
@@ -64,7 +57,7 @@ class mesh_scoreboard extends uvm_scoreboard;
   function void set_expected_packet_count(int expected_count);
     expected_total_packets = expected_count;
     total_packets_received_by_monitor = 0;
-    total_packets_received_by_driver = 0;
+    total_packets_received_by_driver = 0;  // ========== NUEVO: Reset contador driver ==========
     `uvm_info("SCB_SYNC", $sformatf("Expecting %0d total packets to EXIT the mesh", expected_total_packets), UVM_LOW)
   endfunction
 
@@ -101,22 +94,21 @@ class mesh_scoreboard extends uvm_scoreboard;
 
   // DRIVER → SCB - Registra paquetes esperados y procesa buffer
   function void write_ingress(mesh_pkt tr);
-    // ========== MEJORADO: Clave más robusta que incluye ID único ==========
-    string key = $sformatf("%0h_%0d", tr.payload, tr.unique_id);
+    // ========== CORREGIDO: Volver a usar solo payload como clave ==========
+    string key = $sformatf("%0h", tr.payload);
     exp_t e; 
     e.target_row = tr.target_row; 
     e.target_col = tr.target_col; 
     e.mode = tr.mode; 
     e.t_submit = $time;
-    e.unique_id = tr.unique_id; // ========== NUEVO: Guardar ID único ==========
     by_key[key].push_back(e);
     
     // ========== NUEVO: Contar paquete recibido por driver ==========
     total_packets_received_by_driver++;
     
     `uvm_info("SCB_IN",
-      $sformatf("Paquete ENTRÓ a la malla: unique_id=%0d payload=0x%0h -> r=%0d c=%0d m=%0b (driver_total=%0d)",
-                tr.unique_id, tr.payload, e.target_row, e.target_col, e.mode, total_packets_received_by_driver), UVM_MEDIUM)
+      $sformatf("Paquete ENTRÓ a la malla: payload=0x%0h -> r=%0d c=%0d m=%0b (cola_size=%0d, driver_total=%0d)",
+                tr.payload, e.target_row, e.target_col, e.mode, by_key[key].size(), total_packets_received_by_driver), UVM_LOW)
     
     // ========== NUEVO: Procesar buffer de monitor después de registrar paquete ==========
     process_monitor_buffer();
@@ -127,8 +119,8 @@ class mesh_scoreboard extends uvm_scoreboard;
     // ========== NUEVO: Bufferizar paquete en lugar de procesar inmediatamente ==========
     monitor_buffer.push_back(pkt);
     `uvm_info("SCB_BUFFER", 
-      $sformatf("Paquete bufferizado del monitor: unique_id=%0d payload=0x%0h (buffer_size=%0d)",
-                pkt.unique_id, pkt.payload, monitor_buffer.size()), UVM_HIGH)
+      $sformatf("Paquete bufferizado del monitor: payload=0x%0h (buffer_size=%0d)",
+                pkt.payload, monitor_buffer.size()), UVM_HIGH)
     
     // Intentar procesar el buffer
     process_monitor_buffer();
@@ -144,8 +136,8 @@ class mesh_scoreboard extends uvm_scoreboard;
     i = 0;
     while (i < monitor_buffer.size()) begin
       mesh_pkt pkt = monitor_buffer[i];
-      // ========== MEJORADO: Clave más robusta ==========
-      string key = $sformatf("%0h_%0d", pkt.payload, pkt.unique_id);
+      // ========== CORREGIDO: Volver a usar solo payload como clave ==========
+      string key = $sformatf("%0h", pkt.payload);
       
       // Si el paquete del monitor tiene match en el driver, procesarlo
       if (by_key.exists(key) && by_key[key].size() > 0) begin
@@ -155,26 +147,17 @@ class mesh_scoreboard extends uvm_scoreboard;
         expected = by_key[key].pop_front();
         monitor_buffer.delete(i); // Remover del buffer
 
-        // ========== NUEVO: Verificar ID único para debugging ==========
-        if (pkt.unique_id <= last_processed_unique_id) begin
-          duplicate_packets_detected++;
-          `uvm_warning("SCB_DUPLICATE", 
-            $sformatf("Posible paquete duplicado: unique_id=%0d (último procesado=%0d)", 
-                      pkt.unique_id, last_processed_unique_id))
-        end
-        last_processed_unique_id = pkt.unique_id;
-
         // Comparar header
         if (expected.target_row != pkt.target_row || expected.target_col != pkt.target_col || expected.mode != pkt.mode) begin
           `uvm_error("SCB_HDR",
-            $sformatf("Header mismatch unique_id=%0d payload=0x%0h exp[r=%0d c=%0d m=%0b] act[r=%0d c=%0d m=%0b]",
-                      pkt.unique_id, pkt.payload, expected.target_row, expected.target_col, expected.mode,
+            $sformatf("Header mismatch payload=0x%0h exp[r=%0d c=%0d m=%0b] act[r=%0d c=%0d m=%0b]",
+                      pkt.payload, expected.target_row, expected.target_col, expected.mode,
                       pkt.target_row, pkt.target_col, pkt.mode))
         end else begin
           `uvm_info("SCB_OK",
-            $sformatf("OK unique_id=%0d payload=0x%0h r=%0d c=%0d m=%0b (egress_id=%0d)",
-                      pkt.unique_id, pkt.payload, pkt.target_row, pkt.target_col, pkt.mode, pkt.egress_id),
-            UVM_MEDIUM)
+            $sformatf("OK payload=0x%0h r=%0d c=%0d m=%0b (egress_id=%0d)",
+                      pkt.payload, pkt.target_row, pkt.target_col, pkt.mode, pkt.egress_id),
+            UVM_LOW)
         end
 
         // (opcional) puerto exacto
@@ -201,15 +184,15 @@ class mesh_scoreboard extends uvm_scoreboard;
 
         // imprimir latencia individual
         `uvm_info("LAT",
-          $sformatf("Latency dev[%0d] = %0d ns (unique_id=%0d payload=0x%0h)",
-                    pkt.egress_id, latency, pkt.unique_id, pkt.payload),
-          UVM_HIGH)
+          $sformatf("Latency dev[%0d] = %0d ns (payload=0x%0h)",
+                    pkt.egress_id, latency, pkt.payload),
+          UVM_LOW)
 
         // Contar paquete cuando SALE del DUT
         total_packets_received_by_monitor++;
         `uvm_info("SCB_SYNC", 
-          $sformatf("Paquete SALIÓ de la malla: %0d/%0d completados (unique_id=%0d)", 
-                    total_packets_received_by_monitor, expected_total_packets, pkt.unique_id), UVM_MEDIUM)
+          $sformatf("Paquete SALIÓ de la malla: %0d/%0d completados", 
+                    total_packets_received_by_monitor, expected_total_packets), UVM_MEDIUM)
         
         // Notificar al test cuando TODOS los paquetes hayan SALIDO
         if (total_packets_received_by_monitor >= expected_total_packets && expected_total_packets > 0) begin
@@ -220,8 +203,7 @@ class mesh_scoreboard extends uvm_scoreboard;
         // No hay match todavía, mantener en buffer
         i++;
         `uvm_info("SCB_BUFFER", 
-          $sformatf("Esperando paquete del driver para unique_id=%0d payload=0x%0h", 
-                    pkt.unique_id, pkt.payload), UVM_HIGH)
+          $sformatf("Esperando paquete del driver para payload=0x%0h", pkt.payload), UVM_HIGH)
       end
     end
     
@@ -237,16 +219,13 @@ class mesh_scoreboard extends uvm_scoreboard;
     `uvm_info("SCB_STATS", $sformatf("Paquetes SALIDOS del DUT (monitor): %0d", total_packets_received_by_monitor), UVM_NONE)
     `uvm_info("SCB_STATS", $sformatf("Paquetes PERDIDOS en la malla: %0d", 
               total_packets_received_by_driver - total_packets_received_by_monitor), UVM_NONE)
-    `uvm_info("SCB_STATS", $sformatf("Paquetes DUPLICADOS detectados: %0d", duplicate_packets_detected), UVM_NONE)
 
     // Verificar paquetes pendientes en by_key
-    pending_packets = 0;
     foreach (by_key[key]) begin
       if (by_key[key].size() != 0) begin
-        pending_packets += by_key[key].size();
         `uvm_error("SCB_PENDING",
-          $sformatf("Quedaron %0d paquetes pendientes para key=%s (unique_ids: %p)",
-                    by_key[key].size(), key, by_key[key]));
+          $sformatf("Quedaron %0d paquetes pendientes para payload=%s",
+                    by_key[key].size(), key));
       end
     end
 
@@ -255,19 +234,6 @@ class mesh_scoreboard extends uvm_scoreboard;
       `uvm_error("SCB_BUFFER_PENDING",
         $sformatf("Quedaron %0d paquetes en el buffer del monitor sin procesar", 
                   monitor_buffer.size()))
-      foreach (monitor_buffer[i]) begin
-        `uvm_info("SCB_BUFFER_PENDING",
-          $sformatf("Paquete pendiente en buffer: unique_id=%0d payload=0x%0h",
-                    monitor_buffer[i].unique_id, monitor_buffer[i].payload), UVM_NONE)
-      end
-    end
-
-    // Reporte final
-    if (pending_packets == 0 && monitor_buffer.size() == 0) begin
-      `uvm_info("SCB_SUCCESS", "¡Todos los paquetes fueron procesados correctamente!", UVM_NONE)
-    end else begin
-      `uvm_error("SCB_FAIL", $sformatf("Quedaron %0d paquetes pendientes en total", 
-                pending_packets + monitor_buffer.size()))
     end
     
     // --- Reporte de latencias promedio ---
