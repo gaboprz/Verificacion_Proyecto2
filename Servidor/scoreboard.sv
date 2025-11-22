@@ -23,6 +23,10 @@ class mesh_scoreboard extends uvm_scoreboard;
   typedef exp_t exp_q[$];
   exp_q by_key[string];
 
+  // ========== NUEVO: Buffer para paquetes del monitor que llegan antes ==========
+  mesh_pkt monitor_buffer[$];
+  bit processing_monitor_buffer = 0;
+
   // (opcional) validar puerto exacto
   bit check_port_exact = 0;
   int exp_port_from_rc[int][int]; // [row][col] -> dev_id esperado
@@ -61,12 +65,14 @@ class mesh_scoreboard extends uvm_scoreboard;
     // Esperar hasta que TODOS los paquetes hayan SALIDO de la malla
     while (total_packets_received_by_monitor < expected_total_packets) begin
       test_completion_event.wait_trigger();
+      // Romper el loop si ya alcanzamos el total
+      if (total_packets_received_by_monitor >= expected_total_packets) break;
     end
     
     `uvm_info("SCB_SYNC", "All expected packets have EXITED the mesh", UVM_LOW)
   endtask
 
-  // DRIVER → SCB - SOLO registra paquetes esperados, NO cuenta para sincronización
+  // DRIVER → SCB - Registra paquetes esperados y procesa buffer
   function void write_ingress(mesh_pkt tr);
     string key = $sformatf("%0h", tr.payload);
     exp_t e; 
@@ -77,86 +83,128 @@ class mesh_scoreboard extends uvm_scoreboard;
     by_key[key].push_back(e);
     
     `uvm_info("SCB_IN",
-      $sformatf("Paquete ENTRÓ a la malla: payload=0x%0h -> r=%0d c=%0d m=%0b",
-                tr.payload, e.target_row, e.target_col, e.mode), UVM_LOW)
+      $sformatf("Paquete ENTRÓ a la malla: payload=0x%0h -> r=%0d c=%0d m=%0b (cola_size=%0d)",
+                tr.payload, e.target_row, e.target_col, e.mode, by_key[key].size()), UVM_LOW)
+    
+    // ========== NUEVO: Procesar buffer de monitor después de registrar paquete ==========
+    process_monitor_buffer();
   endfunction
 
-  // MONITOR → SCB - MODIFICADO: Contar paquetes cuando SALEN y calcular latencia
+  // MONITOR → SCB - MODIFICADO: Bufferizar paquetes si llegan antes
   function void write_egress(mesh_pkt pkt);
-    string key = $sformatf("%0h", pkt.payload);
-    exp_t expected;
-    longint latency;
+    // ========== NUEVO: Bufferizar paquete en lugar de procesar inmediatamente ==========
+    monitor_buffer.push_back(pkt);
+    `uvm_info("SCB_BUFFER", 
+      $sformatf("Paquete bufferizado del monitor: payload=0x%0h (buffer_size=%0d)",
+                pkt.payload, monitor_buffer.size()), UVM_HIGH)
+    
+    // Intentar procesar el buffer
+    process_monitor_buffer();
+  endfunction
 
-    if (!by_key.exists(key) || by_key[key].size()==0) begin
-      `uvm_error("SCB_OUT", $sformatf("Salida inesperada: payload=0x%0h (cola vacía)", pkt.payload))
-      return;
-    end
+  // ========== NUEVA FUNCIÓN: Procesar buffer de paquetes del monitor ==========
+  function void process_monitor_buffer();
+    if (processing_monitor_buffer) return; // Evitar recursión
+    
+    processing_monitor_buffer = 1;
+    
+    // Procesar todos los paquetes en el buffer que puedan ser matcheados
+    int i = 0;
+    while (i < monitor_buffer.size()) begin
+      mesh_pkt pkt = monitor_buffer[i];
+      string key = $sformatf("%0h", pkt.payload);
+      
+      // Si el paquete del monitor tiene match en el driver, procesarlo
+      if (by_key.exists(key) && by_key[key].size() > 0) begin
+        exp_t expected;
+        longint latency;
 
-    expected = by_key[key].pop_front();
+        expected = by_key[key].pop_front();
+        monitor_buffer.delete(i); // Remover del buffer
 
-    // Comparar header
-    if (expected.target_row != pkt.target_row || expected.target_col != pkt.target_col || expected.mode != pkt.mode) begin
-      `uvm_error("SCB_HDR",
-        $sformatf("Header mismatch payload=0x%0h exp[r=%0d c=%0d m=%0b] act[r=%0d c=%0d m=%0b]",
-                  pkt.payload, expected.target_row, expected.target_col, expected.mode,
-                  pkt.target_row, pkt.target_col, pkt.mode))
-    end else begin
-      `uvm_info("SCB_OK",
-        $sformatf("OK payload=0x%0h r=%0d c=%0d m=%0b (egress_id=%0d)",
-                  pkt.payload, pkt.target_row, pkt.target_col, pkt.mode, pkt.egress_id),
-        UVM_LOW)
-    end
+        // Comparar header
+        if (expected.target_row != pkt.target_row || expected.target_col != pkt.target_col || expected.mode != pkt.mode) begin
+          `uvm_error("SCB_HDR",
+            $sformatf("Header mismatch payload=0x%0h exp[r=%0d c=%0d m=%0b] act[r=%0d c=%0d m=%0b]",
+                      pkt.payload, expected.target_row, expected.target_col, expected.mode,
+                      pkt.target_row, pkt.target_col, pkt.mode))
+        end else begin
+          `uvm_info("SCB_OK",
+            $sformatf("OK payload=0x%0h r=%0d c=%0d m=%0b (egress_id=%0d)",
+                      pkt.payload, pkt.target_row, pkt.target_col, pkt.mode, pkt.egress_id),
+            UVM_LOW)
+        end
 
-    // (opcional) puerto exacto
-    if (check_port_exact) begin
-      if (!(exp_port_from_rc.exists(pkt.target_row) &&
-            exp_port_from_rc[pkt.target_row].exists(pkt.target_col)))
-        `uvm_warning("SCB_PORT", $sformatf("Sin mapping para r=%0d c=%0d; omito check.",
-                                           pkt.target_row, pkt.target_col))
-      else begin
-        int exp_dev = exp_port_from_rc[pkt.target_row][pkt.target_col];
-        if (pkt.egress_id != exp_dev)
-          `uvm_error("SCB_PORT",
-            $sformatf("Puerto incorrecto payload=0x%0h: exp_dev=%0d act_dev=%0d (r=%0d c=%0d)",
-                      pkt.payload, exp_dev, pkt.egress_id, pkt.target_row, pkt.target_col))
+        // (opcional) puerto exacto
+        if (check_port_exact) begin
+          if (!(exp_port_from_rc.exists(pkt.target_row) &&
+                exp_port_from_rc[pkt.target_row].exists(pkt.target_col)))
+            `uvm_warning("SCB_PORT", $sformatf("Sin mapping para r=%0d c=%0d; omito check.",
+                                               pkt.target_row, pkt.target_col))
+          else begin
+            int exp_dev = exp_port_from_rc[pkt.target_row][pkt.target_col];
+            if (pkt.egress_id != exp_dev)
+              `uvm_error("SCB_PORT",
+                $sformatf("Puerto incorrecto payload=0x%0h: exp_dev=%0d act_dev=%0d (r=%0d c=%0d)",
+                          pkt.payload, exp_dev, pkt.egress_id, pkt.target_row, pkt.target_col))
+          end
+        end
+
+        // Calcular latencia
+        latency = $time - expected.t_submit;
+
+        // acumular por terminal
+        sum_latency_per_dev[pkt.egress_id] += latency;
+        count_per_dev[pkt.egress_id]++;
+
+        // imprimir latencia individual
+        `uvm_info("LAT",
+          $sformatf("Latency dev[%0d] = %0d ns (payload=0x%0h)",
+                    pkt.egress_id, latency, pkt.payload),
+          UVM_LOW)
+
+        // Contar paquete cuando SALE del DUT
+        total_packets_received_by_monitor++;
+        `uvm_info("SCB_SYNC", 
+          $sformatf("Paquete SALIÓ de la malla: %0d/%0d completados", 
+                    total_packets_received_by_monitor, expected_total_packets), UVM_MEDIUM)
+        
+        // Notificar al test cuando TODOS los paquetes hayan SALIDO
+        if (total_packets_received_by_monitor >= expected_total_packets && expected_total_packets > 0) begin
+          `uvm_info("SCB_SYNC", "¡TODOS los paquetes han salido de la malla! Disparando evento...", UVM_LOW)
+          test_completion_event.trigger();
+        end
+      end else begin
+        // No hay match todavía, mantener en buffer
+        i++;
+        `uvm_info("SCB_BUFFER", 
+          $sformatf("Esperando paquete del driver para payload=0x%0h", pkt.payload), UVM_HIGH)
       end
     end
-
-    // ========== NUEVO: Calcular latencia ==========
-    latency = $time - expected.t_submit;
-
-    // acumular por terminal
-    sum_latency_per_dev[pkt.egress_id] += latency;
-    count_per_dev[pkt.egress_id]++;
-
-    // imprimir latencia individual (opcional)
-    `uvm_info("LAT",
-      $sformatf("Latency dev[%0d] = %0d ns (payload=0x%0h)",
-                pkt.egress_id, latency, pkt.payload),
-      UVM_LOW)
-
-    // ========== CORRECCIÓN: Contar paquete cuando SALE del DUT ==========
-    total_packets_received_by_monitor++;
-    `uvm_info("SCB_SYNC", 
-      $sformatf("Paquete SALIÓ de la malla: %0d/%0d completados", 
-                total_packets_received_by_monitor, expected_total_packets), UVM_MEDIUM)
     
-    // Notificar al test cuando TODOS los paquetes hayan SALIDO
-    if (total_packets_received_by_monitor >= expected_total_packets && expected_total_packets > 0) begin
-      `uvm_info("SCB_SYNC", "¡TODOS los paquetes han salido de la malla!", UVM_LOW)
-      test_completion_event.trigger();
-    end
+    processing_monitor_buffer = 0;
   endfunction
+
+  // MONITOR → SCB - VERSIÓN ANTIGUA (eliminada)
+  // function void write_egress(mesh_pkt pkt) { ... } // ESTA FUNCIÓN YA NO EXISTE
   
   virtual function void check_phase(uvm_phase phase);
     super.check_phase(phase);
 
+    // Verificar paquetes pendientes en by_key
     foreach (by_key[key]) begin
       if (by_key[key].size() != 0) begin
         `uvm_error("SCB_PENDING",
           $sformatf("Quedaron %0d paquetes pendientes para payload=%s",
                     by_key[key].size(), key));
       end
+    end
+
+    // Verificar paquetes pendientes en el buffer del monitor
+    if (monitor_buffer.size() > 0) begin
+      `uvm_error("SCB_BUFFER_PENDING",
+        $sformatf("Quedaron %0d paquetes en el buffer del monitor sin procesar", 
+                  monitor_buffer.size()))
     end
     
     // --- Reporte de latencias promedio ---
