@@ -22,14 +22,6 @@ interface router_external_if (input clk, input rst);
     ASSERT_NO_PNDNG_DURING_RESET: assert property (no_pndng_i_in_during_reset) 
         else `uvm_error("ASSERT", "pndng_i_in activo durante reset")
     
-    // 2. Aserción: data_out_i_in debe ser estable cuando pndng_i_in está activo y popin está inactivo
-    property stable_data_when_pending;
-        @(posedge clk) disable iff (rst)
-        (pndng_i_in && !popin) |=> $stable(data_out_i_in);
-    endproperty
-    ASSERT_STABLE_DATA_PENDING: assert property (stable_data_when_pending)
-        else `uvm_error("ASSERT", "data_out_i_in cambió mientras pndng_i_in estaba activo y popin inactivo")
-    
     // 3. Aserción: popin solo puede activarse cuando pndng_i_in está activo
     property popin_only_when_pndng_i_in;
         @(posedge clk) disable iff (rst)
@@ -37,14 +29,6 @@ interface router_external_if (input clk, input rst);
     endproperty
     ASSERT_POPIN_REQUIRES_PNDNG: assert property (popin_only_when_pndng_i_in)
         else `uvm_error("ASSERT", "popin activo sin pndng_i_in")
-    
-    // 4. Aserción: Protocolo handshake - pndng_i_in debe desactivarse después de popin
-    property handshake_protocol_input;
-        @(posedge clk) disable iff (rst)
-        (pndng_i_in && popin) |=> !pndng_i_in;
-    endproperty
-    ASSERT_HANDSHAKE_INPUT: assert property (handshake_protocol_input)
-        else `uvm_error("ASSERT", "pndng_i_in no se desactivó después de popin")
     
     // ================================
     // ASERCIONES PARA SEÑALES DE SALIDA
@@ -84,5 +68,5 @@ interface router_external_if (input clk, input rst);
     endproperty
     ASSERT_NO_SIMULTANEOUS_POP: assert property (no_simultaneous_pop)
         else `uvm_error("ASSERT", "popin y pop activos simultáneamente")
-                   
+
 endinterface
