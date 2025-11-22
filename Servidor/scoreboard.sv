@@ -197,6 +197,7 @@ class mesh_scoreboard extends uvm_scoreboard;
           `uvm_info("SCB_SYNC", "¡TODOS los paquetes han salido de la malla! Disparando evento...", UVM_LOW)
           test_completion_event.trigger();
         end
+      }
       end else begin
         // No hay match todavía, mantener en buffer
         i++;
