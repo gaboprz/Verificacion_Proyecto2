@@ -50,17 +50,11 @@ class test extends uvm_test;
     virtual function void setup_test_scenarios();
         test_config_t prueba;
         
-        /*// PRUEBA 1: Solo 1 paquete en agente 1
+        // PRUEBA 1: Solo 1 paquete en agente 1
         prueba.name = "Prueba 1 - Un paquete en agente 1";
         prueba.num_packets_per_agent = '{
             0: 25,  1: 25,  2: 25,  3:25,  4: 25,  5: 25,  6: 25,  7: 25,
             8: 25,  9: 25,  10: 25, 11: 25, 12: 25, 13: 25, 14: 25, 15: 25
-        };
-        test_list.push_back(prueba);*/
-        prueba.name = "Prueba 2 - Un paquete en agente 1";
-        prueba.num_packets_per_agent = '{
-            0: 1,  1: 1,  2: 0,  3:0,  4: 0,  5: 0,  6: 0,  7: 0,
-            8: 0,  9: 0,  10: 0, 11: 0, 12: 0, 13: 0, 14: 0, 15: 0
         };
         test_list.push_back(prueba);
 
