@@ -19,20 +19,6 @@ class mesh_pkt extends uvm_sequence_item;
 
   // Constraints
   constraint c_nxt_no_bcast { nxt_jump != 8'hFF; }
-  //constraint c_row { target_row inside {[0:`ROWS-1]}; }
-  //constraint c_col { target_col inside {[0:`COLUMNS-1]}; }
-
-    /*constraint c_external_device_row {
-    (((target_row == 0) || (target_row == `ROWS-1)) && (target_col inside {[0:`COLUMNS-1]}));
-  }
-
-  constraint c_external_device_column {
-    (((target_col == 0) || (target_col == `COLUMNS-1)) && (target_row inside {[0:`ROWS-1]}));
-  }*/
-
-  constraint c_external_device_column {
-    (target_col == 5) && (target_row == 4);
-  }
 
   constraint c_external_device {
     ( (target_row == 0 && target_col inside {1,2,3,4}) ||
