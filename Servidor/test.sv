@@ -103,7 +103,8 @@ class test extends uvm_test;
                     begin
                         gen_mesh_seq seq = gen_mesh_seq::type_id::create($sformatf("seq_%0d", agent));
                         seq.num = configuration.num_packets_per_agent[agent];
-                        
+                        seq.pre_gap_max  = 30;
+                        seq.post_gap_max = 5;
                         seq.start(env.agents[agent].s0);
                         
                         `uvm_info("TEST", $sformatf("Agente %0d completado: %0d paquetes", agent, seq.num), UVM_MEDIUM)
