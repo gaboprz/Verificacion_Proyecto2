@@ -31,7 +31,7 @@ class mesh_pkt extends uvm_sequence_item;
   }*/
 
   constraint c_external_device_column {
-    (target_col == 3) && (target_row == 3);
+    (target_col == 0) && (target_row == 0);
   }
 
   // >>> Rango simple y seguro para la holgura entre envíos
