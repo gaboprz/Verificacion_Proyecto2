@@ -31,14 +31,14 @@ class mesh_pkt extends uvm_sequence_item;
       (target_row == 3 && target_col inside {0,1,2,3}) ||      // Fila 3
       (target_row == 4 && target_col == 5) ||                  // [4,5]
       (target_row == 5 && target_col inside {1,4})             // [5,1], [5,4]
-    }
+    };
   }
 
   constraint c_random_raw_column {
     if (!use_valid_destinations) {
       // Destinos aleatorios para estresar
       (target_row inside {0,1,2,3,4,5}) && (target_col inside {0,1,2,3,4,5})
-    }
+    };
   }
 
   // >>> Rango simple y seguro para la holgura entre envíos
