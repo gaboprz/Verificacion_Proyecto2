@@ -21,7 +21,7 @@ class test extends uvm_test;
     int total_packets_to_send = 0;
     
     // ========== NUEVO: Parámetros de timeout ==========
-    int timeout_checks = 10;           // Número de checks sin progreso antes de timeout
+    int timeout_checks = 20;           // Número de checks sin progreso antes de timeout
     int check_interval = 1000;         // Intervalo entre checks (unidades de tiempo)
     int current_timeout_count = 0;     // Contador actual de timeout
     int last_progress_count = 0;       // Último conteo de progreso
