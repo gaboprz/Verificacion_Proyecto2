@@ -51,6 +51,8 @@ class mesh_scoreboard extends uvm_scoreboard;
 
   int i;
 
+  int pending_packets;
+
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
     ingress_imp = new("ingress_imp", this);
@@ -238,7 +240,7 @@ class mesh_scoreboard extends uvm_scoreboard;
     `uvm_info("SCB_STATS", $sformatf("Paquetes DUPLICADOS detectados: %0d", duplicate_packets_detected), UVM_NONE)
 
     // Verificar paquetes pendientes en by_key
-    int pending_packets = 0;
+    pending_packets = 0;
     foreach (by_key[key]) begin
       if (by_key[key].size() != 0) begin
         pending_packets += by_key[key].size();
