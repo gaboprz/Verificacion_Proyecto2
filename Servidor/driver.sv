@@ -7,7 +7,7 @@ class mesh_driver extends uvm_driver #(mesh_pkt);
 
   virtual router_external_if vif;
   int device_id;
-
+  int unsigned n;
   //puerto de análisis hacia el scoreboard 
   uvm_analysis_port #(mesh_pkt) drv_ap;
 
@@ -37,7 +37,7 @@ class mesh_driver extends uvm_driver #(mesh_pkt);
 
       // >>> NUEVO: espera aleatoria por item (en ciclos de clk)
       //     (el valor viene aleatorio desde el sequence_item)
-      int unsigned n = m_item.idle_cycles;
+      n = m_item.idle_cycles;
       repeat (n) @(posedge vif.clk);
 
       // Presentar paquete al DUT
