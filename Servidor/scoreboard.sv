@@ -91,6 +91,7 @@ class mesh_scoreboard extends uvm_scoreboard;
   function void write_egress(mesh_pkt pkt);
     string key = $sformatf("%0h", pkt.payload);
     exp_t expected;
+    longint latency;
 
     if (!by_key.exists(key) || by_key[key].size()==0) begin
       `uvm_error("SCB_OUT", $sformatf("Salida inesperada: payload=0x%0h (cola vacía)", pkt.payload))
@@ -127,7 +128,7 @@ class mesh_scoreboard extends uvm_scoreboard;
       end
     end
     // calcular latencia
-    longint latency = $time - expected.t_submit;
+    latency = $time - expected.t_submit;
 
     // acumular por terminal
     sum_latency_per_dev[pkt.egress_id] += latency;
