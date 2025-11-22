@@ -27,20 +27,62 @@ class mesh_scoreboard extends uvm_scoreboard;
   bit check_port_exact = 0;
   int exp_port_from_rc[int][int]; // [row][col] -> dev_id esperado
 
+  // ========== CORREGIDO: Sincronización con test (MANTENIENDO uvm_event) ==========
+  // Contadores para sincronización
+  int total_packets_received = 0;
+  int expected_total_packets = 0;
+  
+  // Evento para notificar al test (MANTENIENDO uvm_event)
+  uvm_event test_completion_event;
+
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
     ingress_imp = new("ingress_imp", this);
     egress_imp  = new("egress_imp" , this);
+    test_completion_event = new("test_completion_event");
   endfunction
 
-  // DRIVER → SCB
+  // ========== CORREGIDO: Método para que test configure expectativas ==========
+  function void set_expected_packet_count(int expected_count);
+    expected_total_packets = expected_count;
+    total_packets_received = 0;
+    `uvm_info("SCB_SYNC", $sformatf("Expecting %0d total packets from test", expected_total_packets), UVM_LOW)
+  endfunction
+
+  // ========== CORREGIDO: Método para que test espere completación ==========
+  task wait_for_completion();
+    `uvm_info("SCB_SYNC", $sformatf("Waiting for completion: %0d/%0d packets", 
+              total_packets_received, expected_total_packets), UVM_LOW)
+    
+    // CORRECCIÓN: Usar wait_trigger() en lugar de @(posedge)
+    if (total_packets_received < expected_total_packets) begin
+      test_completion_event.wait_trigger();
+    end
+    
+    `uvm_info("SCB_SYNC", "All expected packets processed by scoreboard", UVM_LOW)
+  endtask
+
+  // DRIVER → SCB - CORREGIDO para contar paquetes
   function void write_ingress(mesh_pkt tr);
     string key = $sformatf("%0h", tr.payload);
-    exp_t e; e.target_row = tr.target_row; e.target_col = tr.target_col; e.mode = tr.mode; e.t_submit = $time;
+    exp_t e; 
+    e.target_row = tr.target_row; 
+    e.target_col = tr.target_col; 
+    e.mode = tr.mode; 
+    e.t_submit = $time;
     by_key[key].push_back(e);
+    
+    // ========== CORREGIDO: Contar paquete recibido ==========
+    total_packets_received++;
     `uvm_info("SCB_IN",
-      $sformatf("Esperado: payload=0x%0h -> r=%0d c=%0d m=%0b (pend=%0d)",
-                tr.payload, e.target_row, e.target_col, e.mode, by_key[key].size()), UVM_LOW)
+      $sformatf("Esperado: payload=0x%0h -> r=%0d c=%0d m=%0b (recibidos=%0d/esperados=%0d)",
+                tr.payload, e.target_row, e.target_col, e.mode, 
+                total_packets_received, expected_total_packets), UVM_LOW)
+    
+    // CORRECCIÓN: Usar trigger() en lugar de -> 
+    if (total_packets_received >= expected_total_packets && expected_total_packets > 0) begin
+      test_completion_event.trigger();
+    end
   endfunction
 
   // MONITOR → SCB
@@ -53,9 +95,7 @@ class mesh_scoreboard extends uvm_scoreboard;
       return;
     end
 
-    
     expected = by_key[key].pop_front();
-
 
     // Comparar header
     if (expected.target_row != pkt.target_row || expected.target_col != pkt.target_col || expected.mode != pkt.mode) begin
