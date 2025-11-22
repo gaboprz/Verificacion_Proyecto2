@@ -25,6 +25,8 @@ class test extends uvm_test;
     int last_received_count = 0;
     int stable_cycles_threshold = 100; // Si no hay progreso en 100 ciclos, terminar
 
+    int current_progress;
+
     function new(string name = "test", uvm_component parent=null);
         super.new(name, parent);
     endfunction
@@ -96,7 +98,7 @@ class test extends uvm_test;
         while (timeout_counter < max_timeout_cycles) begin
             #100; // Monitorear cada 100 unidades de tiempo
             
-            int current_progress = env.scb.get_current_progress();
+            current_progress = env.scb.get_current_progress();
             
             // Verificar si hay progreso
             if (current_progress > last_received_count) begin
