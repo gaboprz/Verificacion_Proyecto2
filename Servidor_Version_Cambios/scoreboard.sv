@@ -60,6 +60,9 @@ class mesh_scoreboard extends uvm_scoreboard;
   packet_tracking_t packet_tracking[string]; // key -> tracking info
   string packet_keys[$]; // Para mantener orden
 
+  int lost_packets;
+    int received_packets;
+
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
     ingress_imp = new("ingress_imp", this);
@@ -155,8 +158,7 @@ class mesh_scoreboard extends uvm_scoreboard;
     
     by_key[key].push_back(e);
 
-    int lost_packets;
-    int received_packets;
+    
     
     `uvm_info("SCB_IN",
       $sformatf("Paquete ENTRÓ a la malla: payload=0x%0h -> r=%0d c=%0d m=%0b (cola_size=%0d, total_driver=%0d)",
