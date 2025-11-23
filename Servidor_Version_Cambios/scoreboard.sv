@@ -42,6 +42,8 @@ class mesh_scoreboard extends uvm_scoreboard;
   // Evento para notificar al test
   uvm_event test_completion_event;
 
+  int i;
+
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
     ingress_imp = new("ingress_imp", this);
@@ -113,7 +115,7 @@ class mesh_scoreboard extends uvm_scoreboard;
     processing_monitor_buffer = 1;
     
     // Procesar todos los paquetes en el buffer que puedan ser matcheados
-    int i = 0;
+    i = 0;
     while (i < monitor_buffer.size()) begin
       mesh_pkt pkt = monitor_buffer[i];
       string key = generate_unique_key(pkt);
