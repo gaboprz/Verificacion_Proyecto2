@@ -23,7 +23,7 @@ class mesh_scoreboard extends uvm_scoreboard;
   typedef exp_t exp_q[$];
   exp_q by_key[string];
 
-  // ========== MEJORADO: Buffer para paquetes del monitor ==========
+  // Buffer para paquetes del monitor que llegan antes
   mesh_pkt monitor_buffer[$];
   bit processing_monitor_buffer = 0;
 
@@ -31,7 +31,6 @@ class mesh_scoreboard extends uvm_scoreboard;
   bit check_port_exact = 0;
   int exp_port_from_rc[int][int]; // [row][col] -> dev_id esperado
 
-  // ========== Sincronización basada en paquetes QUE SALEN ==========
   // Contadores para sincronización
   int total_packets_received_by_monitor = 0;  // Paquetes que SALIERON del DUT
   int expected_total_packets = 0;
@@ -43,10 +42,6 @@ class mesh_scoreboard extends uvm_scoreboard;
   // Evento para notificar al test
   uvm_event test_completion_event;
 
-  int i;
-
-  mesh_pkt local_buffer[$];
-
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
     ingress_imp = new("ingress_imp", this);
@@ -54,48 +49,36 @@ class mesh_scoreboard extends uvm_scoreboard;
     test_completion_event = new("test_completion_event");
   endfunction
 
-  // ========== MEJORADO: Función para generar clave única ==========
-  function string generate_unique_key(mesh_pkt pkt);
-    return $sformatf("%0h_%0d_%0d_%0d", pkt.payload, pkt.target_row, pkt.target_col, pkt.mode);
-  endfunction
-
-  // ========== Método para que test configure expectativas ==========
+  // Método para que test configure expectativas
   function void set_expected_packet_count(int expected_count);
     expected_total_packets = expected_count;
     total_packets_received_by_monitor = 0;
     `uvm_info("SCB_SYNC", $sformatf("Expecting %0d total packets to EXIT the mesh", expected_total_packets), UVM_LOW)
   endfunction
 
-  // ========== MEJORADO: Método para que test espere completación con timeout ==========
+  // Método para que test espere completación
   task wait_for_completion();
     `uvm_info("SCB_SYNC", $sformatf("Waiting for completion: %0d/%0d packets EXITED mesh", 
               total_packets_received_by_monitor, expected_total_packets), UVM_LOW)
     
-    fork
-      // Espera principal
-      begin
-        while (total_packets_received_by_monitor < expected_total_packets) begin
-          test_completion_event.wait_trigger();
-          if (total_packets_received_by_monitor >= expected_total_packets) break;
-        end
-      end
-      
-      // Timeout de seguridad
-      begin
-        #1000000; // 1ms timeout
-        `uvm_warning("TEST_TIMEOUT", 
-            $sformatf("Timeout esperando paquetes. Recibidos: %0d/%0d", 
-                     total_packets_received_by_monitor, expected_total_packets))
-      end
-    join_any
-    disable fork;
+    // Esperar hasta que TODOS los paquetes hayan SALIDO de la malla
+    while (total_packets_received_by_monitor < expected_total_packets) begin
+      test_completion_event.wait_trigger();
+      // Romper el loop si ya alcanzamos el total
+      if (total_packets_received_by_monitor >= expected_total_packets) break;
+    end
     
     `uvm_info("SCB_SYNC", "All expected packets have EXITED the mesh", UVM_LOW)
   endtask
 
+  // Función para generar una clave única que incluya más campos
+  function string generate_unique_key(mesh_pkt pkt);
+    return $sformatf("%0h_%0d_%0d_%0d", pkt.payload, pkt.target_row, pkt.target_col, pkt.mode);
+  endfunction
+
   // DRIVER → SCB - Registra paquetes esperados y procesa buffer
   function void write_ingress(mesh_pkt tr);
-    string key = generate_unique_key(tr);  // Usar clave mejorada
+    string key = generate_unique_key(tr);
     exp_t e; 
     e.target_row = tr.target_row; 
     e.target_col = tr.target_col; 
@@ -123,25 +106,17 @@ class mesh_scoreboard extends uvm_scoreboard;
     process_monitor_buffer();
   endfunction
 
-  // ========== FUNCIÓN MEJORADA: Procesar buffer de paquetes del monitor ==========
+  // Función para procesar buffer de paquetes del monitor
   function void process_monitor_buffer();
     if (processing_monitor_buffer) return; // Evitar recursión
     
     processing_monitor_buffer = 1;
     
-    // Crear una copia local del buffer para procesar de forma segura
-    local_buffer[$] = monitor_buffer;
-    monitor_buffer.delete();
-    
-    // Procesar todos los paquetes en la copia local
-    foreach (local_buffer[i]) begin
-      mesh_pkt pkt = local_buffer[i];
-      string key = generate_unique_key(pkt);  // Usar clave mejorada
-      
-      `uvm_info("SCB_DEBUG", 
-        $sformatf("Procesando buffer: tamaño=%0d, by_key[%s].size()=%0d", 
-                  local_buffer.size(), key, by_key.exists(key) ? by_key[key].size() : 0), 
-        UVM_HIGH)
+    // Procesar todos los paquetes en el buffer que puedan ser matcheados
+    int i = 0;
+    while (i < monitor_buffer.size()) begin
+      mesh_pkt pkt = monitor_buffer[i];
+      string key = generate_unique_key(pkt);
       
       // Si el paquete del monitor tiene match en el driver, procesarlo
       if (by_key.exists(key) && by_key[key].size() > 0) begin
@@ -149,6 +124,7 @@ class mesh_scoreboard extends uvm_scoreboard;
         longint latency;
 
         expected = by_key[key].pop_front();
+        monitor_buffer.delete(i); // Remover del buffer
 
         // Comparar header
         if (expected.target_row != pkt.target_row || expected.target_col != pkt.target_col || expected.mode != pkt.mode) begin
@@ -204,7 +180,7 @@ class mesh_scoreboard extends uvm_scoreboard;
         end
       end else begin
         // No hay match todavía, mantener en buffer
-        monitor_buffer.push_back(pkt);
+        i++;
         `uvm_info("SCB_BUFFER", 
           $sformatf("Esperando paquete del driver para payload=0x%0h", pkt.payload), UVM_HIGH)
       end
@@ -212,7 +188,7 @@ class mesh_scoreboard extends uvm_scoreboard;
     
     processing_monitor_buffer = 0;
   endfunction
-  
+
   virtual function void check_phase(uvm_phase phase);
     super.check_phase(phase);
 
