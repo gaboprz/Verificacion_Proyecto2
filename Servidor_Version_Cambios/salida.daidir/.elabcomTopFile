@@ -1,0 +1,1 @@
+uvm_custom_install_recording uvm_custom_install_verdi_recording fifo_ltch fifo_ltch_no_rst ntrpt_cam_fifo mem_latch bs_gnrtr bs_gnrtr_n_rbtr prll_rgstr prll_bs_gnrtr_n_rbtr_fifo prll_bus_gnrtr_cn_rbtr tb
