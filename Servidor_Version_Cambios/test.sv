@@ -184,52 +184,42 @@ class test extends uvm_test;
     endtask
 
     // TAREA PARA EJECUTAR UNA PRUEBA INDIVIDUAL
-        // TAREA PARA EJECUTAR UNA PRUEBA INDIVIDUAL
+    
+
     virtual task run_single_test(test_config_t configuration);
-        fork
-            for (int agent_id = 0; agent_id < `NUM_DEVS; agent_id++) begin
-                automatic int agent = agent_id;
-                if (configuration.num_packets_per_agent[agent] > 0) begin
-                    begin
-                        gen_mesh_seq seq;
-                        seq = gen_mesh_seq::type_id::create($sformatf("seq_%0d_%s",
-                                                                      agent,
-                                                                      configuration.name));
-                        seq.num = configuration.num_packets_per_agent[agent];
+    fork
+        for (int agent_id = 0; agent_id < `NUM_DEVS; agent_id++) begin
+        automatic int agent = agent_id;
+        if (configuration.num_packets_per_agent[agent] > 0) begin
+            begin
+            gen_mesh_seq seq;
+            seq = gen_mesh_seq::type_id::create($sformatf("seq_%0d_%s",
+                                                            agent,
+                                                            configuration.name));
+            seq.num = configuration.num_packets_per_agent[agent];
 
-                        // >>> AQUÍ CONTROLÁS EL TIPO DE DESTINO <<<
-                        // 0 = solo destinos válidos
-                        // 1 = solo destinos inválidos
-                        // 2 = mezcla
-                        if (configuration.name == "Prueba 1") begin
-                            // por ejemplo: solo destinos válidos
-                            seq.dest_mode = 0;
-                        end
-                        else if (configuration.name == "Prueba 2") begin
-                            // por ejemplo: solo destinos inválidos
-                            seq.dest_mode = 0;
-                        end
-                        else begin
-                            // cualquier otra prueba: mezcla
-                            seq.dest_mode = 0;
-                        end
-
-                        // Lanzar la secuencia en el agente correspondiente
-                        seq.start(env.agents[agent].s0);
-                        
-                        `uvm_info("TEST",
-                          $sformatf("Agente %0d completado: %0d paquetes (dest_mode=%0d)",
-                                    agent, seq.num, seq.dest_mode),
-                          UVM_MEDIUM)
-                    end
-                end else begin
-                    `uvm_info("TEST", $sformatf("Agente %0d: 0 paquetes - omitido", agent), UVM_HIGH)
-                end
+            if (configuration.name == "Prueba 1") begin
+                seq.dest_mode = 0; // sólo destinos válidos
             end
-        join
-        
-        // Pequeña pausa para que los últimos paquetes entren al DUT
-        #100;
+            else if (configuration.name == "Prueba 2") begin
+                seq.dest_mode = 0; // sólo destinos inválidos
+            end
+
+            seq.start(env.agents[agent].s0);
+
+            `uvm_info("TEST",
+                $sformatf("Agente %0d completado: %0d paquetes (dest_mode=%0d)",
+                        agent, seq.num, seq.dest_mode),
+                UVM_MEDIUM)
+            end
+        end
+        else begin
+            `uvm_info("TEST", $sformatf("Agente %0d: 0 paquetes - omitido", agent), UVM_HIGH)
+        end
+        end
+    join
+
+    #100;
     endtask
 
 endclass

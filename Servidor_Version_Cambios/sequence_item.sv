@@ -8,43 +8,47 @@ class mesh_pkt extends uvm_sequence_item;
   rand bit                  mode;
   rand bit [`PAYLOAD_W-1:0] payload;
 
-  // >>> NUEVO: válido/ inválido
-  rand bit                  dest_valid;   // 1 = destino válido, 0 = inválido
-
   // >>> NUEVO: jitter entre envíos (en ciclos de clk)
   rand int unsigned         idle_cycles;
 
   // Vector listo para el DUT
   bit [`PKG_SZ-1:0]         raw_pkt;
 
+    // >>> NUEVO: ¿destino válido o inválido?
+  rand bit                  dest_valid;
   // Observación (monitor)
   int unsigned              egress_id;
 
-
   // Constraints
+    // No usar broadcast
   constraint c_nxt_no_bcast { nxt_jump != 8'hFF; }
 
-  // Si dest_valid==1 → coordenadas de terminal externa
-  // Si dest_valid==0 → coordenadas que NO sean terminal externa
-  constraint c_dest_switch {
-    dest_valid -> (
-      (target_row == 0 && target_col inside {1,2,3,4}) ||
-      (target_col == 0 && target_row inside {1,2,3,4}) ||
-      (target_row == 5 && target_col inside {1,2,3,4}) ||
-      (target_col == 5 && target_row inside {1,2,3,4})
-    );
-
-    !dest_valid -> !(
-      (target_row == 0 && target_col inside {1,2,3,4}) ||
-      (target_col == 0 && target_row inside {1,2,3,4}) ||
-      (target_row == 5 && target_col inside {1,2,3,4}) ||
-      (target_col == 5 && target_row inside {1,2,3,4})
-    );
+  // Rango razonable para coordenadas (0..5 para tu topología con bordes)
+  constraint c_rc_range {
+    target_row inside {[0:5]};
+    target_col inside {[0:5]};
   }
 
-  // >>> Rango simple y seguro para la holgura entre envíos
-  constraint c_idle { idle_cycles inside {[0:20]}; }
+  // Destino válido si está en la “borde” (tus terminales externas)
+  // INVALIDO = cualquier coordenada fuera de esas terminales
+  constraint c_dest {
+    if (dest_valid)
+      (
+        (target_row == 0 && target_col inside {1,2,3,4}) ||
+        (target_col == 0 && target_row inside {1,2,3,4}) ||
+        (target_row == 5 && target_col inside {1,2,3,4}) ||
+        (target_col == 5 && target_row inside {1,2,3,4})
+      );
+    else
+      !(
+        (target_row == 0 && target_col inside {1,2,3,4}) ||
+        (target_col == 0 && target_row inside {1,2,3,4}) ||
+        (target_row == 5 && target_col inside {1,2,3,4}) ||
+        (target_col == 5 && target_row inside {1,2,3,4})
+      );
+  endconstraint
 
+  constraint c_idle { idle_cycles inside {[0:20]}; }
 
   function new(string name="mesh_pkt"); super.new(name); endfunction
 
