@@ -20,6 +20,7 @@ class test extends uvm_test;
     int total_packets_to_send = 0;
 
     int current_progress;
+    int no_progress_cycles;
     
     function new(string name = "test", uvm_component parent=null);
         super.new(name, parent);
@@ -86,7 +87,7 @@ class test extends uvm_test;
     virtual task wait_with_smart_timeout();
         int timeout_counter = 0;
         int last_progress = 0;
-        int no_progress_cycles = 0;
+        no_progress_cycles = 0;
         int max_no_progress = 2000; // Si no hay progreso en 2000 ciclos, terminar
         
         `uvm_info("TEST_TIMEOUT", "Iniciando espera con timeout inteligente", UVM_LOW)
