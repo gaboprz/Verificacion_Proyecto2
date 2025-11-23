@@ -8,7 +8,7 @@ class mesh_pkt extends uvm_sequence_item;
   rand bit                  mode;
   rand bit [`PAYLOAD_W-1:0] payload;
 
-  // jitter entre envíos
+  // >>> NUEVO: jitter entre envíos (en ciclos de clk)
   rand int unsigned         idle_cycles;
 
   // Vector listo para el DUT
@@ -28,11 +28,11 @@ class mesh_pkt extends uvm_sequence_item;
     );
   }
 
+  // >>> Rango simple y seguro para la holgura entre envíos
+  //     (ajústalo a gusto o déjalo así)
   constraint c_idle { idle_cycles inside {[0:20]}; }
 
-  function new(string name="mesh_pkt"); 
-    super.new(name); 
-  endfunction
+  function new(string name="mesh_pkt"); super.new(name); endfunction
 
   function void pack_bits();
     raw_pkt = '0;

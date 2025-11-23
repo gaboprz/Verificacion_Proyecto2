@@ -16,14 +16,8 @@ class test extends uvm_test;
     // Lista de pruebas a ejecutar
     test_config_t test_list[$];
     
-    // Contador total de paquetes
+    // ========== NUEVO: Contador total de paquetes ==========
     int total_packets_to_send = 0;
-
-    int current_progress;
-    int timeout_counter;
-    int last_progress;
-    int no_progress_cycles;
-    int max_no_progress;
     
     function new(string name = "test", uvm_component parent=null);
         super.new(name, parent);
@@ -38,11 +32,11 @@ class test extends uvm_test;
         uvm_config_db#(int unsigned)::set(this, "env", "NUM_DEVS", `NUM_DEVS);
         setup_test_scenarios();
         
-        // Calcular total de paquetes
+        // ========== NUEVO: Calcular total de paquetes ==========
         calculate_total_packets();
     endfunction
 
-    // Calcular cuántos paquetes enviaremos en total
+    // ========== NUEVO: Calcular cuántos paquetes enviaremos en total ==========
     virtual function void calculate_total_packets();
         total_packets_to_send = 0;
         foreach (test_list[i]) begin
@@ -56,25 +50,11 @@ class test extends uvm_test;
     virtual function void setup_test_scenarios();
         test_config_t prueba;
         
-        // PRUEBA 1
-        prueba.name = "Prueba 1";
+        // PRUEBA 1: Solo 1 paquete en agente 1
+        prueba.name = "Prueba 1 - Un paquete en agente 1";
         prueba.num_packets_per_agent = '{
-            0: 1,  1: 4,  2: 2,  3:3,  4: 2,  5: 5,  6: 4,  7: 3,
-            8: 5,  9: 5,  10: 2, 11: 0, 12: 2, 13: 2, 14: 2, 15: 1
-        };
-        test_list.push_back(prueba);
-
-        prueba.name = "Prueba 2";
-        prueba.num_packets_per_agent = '{
-            0: 1,  1: 4,  2: 2,  3:3,  4: 2,  5: 5,  6: 4,  7: 3,
-            8: 5,  9: 5,  10: 2, 11: 10, 12: 12, 13: 21, 14: 2, 15: 1
-        };
-        test_list.push_back(prueba);
-        
-        prueba.name = "Prueba 3";
-        prueba.num_packets_per_agent = '{
-            0: 11,  1: 21,  2: 21,  3:31,  4: 2,  5: 5,  6: 4,  7: 3,
-            8: 5,  9: 15,  10: 12, 11: 10, 12: 12, 13: 21, 14: 12, 15: 1
+            0: 1,  1: 4,  2: 10,  3:20,  4: 0,  5: 10,  6: 0,  7: 0,
+            8: 0,  9: 10,  10: 10, 11: 0, 12: 10, 13: 10, 14: 0, 15: 0
         };
         test_list.push_back(prueba);
         
@@ -86,61 +66,13 @@ class test extends uvm_test;
         uvm_top.print_topology();
     endfunction
 
-    // TAREA: Timeout simple y efectivo
-    virtual task wait_with_smart_timeout();
-        timeout_counter = 0;
-        last_progress = 0;
-        no_progress_cycles = 0;
-        max_no_progress = 2000; // Si no hay progreso en 2000 ciclos, terminar
-        
-        `uvm_info("TEST_TIMEOUT", "Iniciando espera con timeout inteligente", UVM_LOW)
-        
-        while (timeout_counter < 10000 && no_progress_cycles < max_no_progress) begin
-            #100; // Esperar 100 unidades de tiempo
-            timeout_counter++;
-            
-            current_progress = env.scb.get_current_progress();
-            
-            // Verificar progreso
-            if (current_progress > last_progress) {
-                // Hay progreso, resetear contador
-                no_progress_cycles = 0;
-                last_progress = current_progress;
-                `uvm_info("TEST_PROGRESS", 
-                    $sformatf("Progreso: %0d/%0d paquetes", current_progress, total_packets_to_send), UVM_HIGH)
-            } else {
-                no_progress_cycles++;
-            }
-            
-            // Si ya completamos, salir
-            if (current_progress >= total_packets_to_send) {
-                `uvm_info("TEST_SUCCESS", "Todos los paquetes recibidos correctamente", UVM_LOW)
-                return;
-            }
-            
-            // Si estamos muy cerca del final y no hay progreso, forzar
-            if (no_progress_cycles > 1000 && current_progress >= total_packets_to_send - 1) {
-                `uvm_warning("TEST_TIMEOUT", 
-                    $sformatf("Forzando finalización. Progreso: %0d/%0d", current_progress, total_packets_to_send))
-                env.scb.force_completion();
-                return;
-            }
-        end
-        
-        // Timeout
-        `uvm_warning("TEST_TIMEOUT", 
-            $sformatf("Timeout. Paquetes recibidos: %0d/%0d", 
-            env.scb.get_current_progress(), total_packets_to_send))
-        env.scb.force_completion();
-    endtask
-
-    // TAREA PRINCIPAL
+    // TAREA PRINCIPAL - MODIFICADA para mejor sincronización
     virtual task run_phase(uvm_phase phase);
         phase.raise_objection(this);
         
-        `uvm_info("TEST", "Iniciando suite de pruebas", UVM_LOW)
+        `uvm_info("TEST", "Iniciando suite de pruebas avanzadas", UVM_LOW)
         
-        // Informar al scoreboard cuántos paquetes esperamos
+        // ========== NUEVO: Informar al scoreboard cuántos paquetes esperamos que SALGAN ==========
         env.scb.set_expected_packet_count(total_packets_to_send);
         
         // EJECUTAR CADA PRUEBA EN SECUENCIA
@@ -150,33 +82,18 @@ class test extends uvm_test;
             `uvm_info("TEST", $sformatf("=== ENVÍO COMPLETADO %s ===", test_list[i].name), UVM_LOW)
         end
         
-        // ESPERA CON TIMEOUT
-        `uvm_info("TEST_SYNC", "Esperando a que los paquetes SALGAN de la malla...", UVM_LOW)
+        // ========== CORRECCIÓN: Esperar a que scoreboard confirme que TODOS los paquetes SALIERON ==========
+        `uvm_info("TEST_SYNC", "Esperando a que TODOS los paquetes SALGAN de la malla...", UVM_LOW)
+        env.scb.wait_for_completion();
         
-        fork
-            // Proceso 1: Espera normal
-            begin
-                env.scb.wait_for_completion();
-            end
-            
-            // Proceso 2: Timeout
-            begin
-                wait_with_smart_timeout();
-            end
-        join_any
-        
-        // Matar el proceso que quede pendiente
-        disable fork;
-        
-        // Pequeña pausa final
+        // Pequeña pausa adicional para asegurar que todo se estabilice
         #1000;
         
-        `uvm_info("TEST", $sformatf("Prueba completada. Paquetes: %0d/%0d", 
-                  env.scb.get_current_progress(), total_packets_to_send), UVM_LOW)
+        `uvm_info("TEST", "Todas las pruebas completadas exitosamente - TODOS los paquetes salieron", UVM_LOW)
         phase.drop_objection(this);
     endtask
 
-    // TAREA PARA EJECUTAR UNA PRUEBA INDIVIDUAL
+    // TAREA PARA EJECUTAR UNA PRUEBA INDIVIDUAL - SIN CAMBIOS
     virtual task run_single_test(test_config_t configuration);
         fork
             for (int agent_id = 0; agent_id < `NUM_DEVS; agent_id++) begin
@@ -185,17 +102,18 @@ class test extends uvm_test;
                     begin
                         gen_mesh_seq seq = gen_mesh_seq::type_id::create($sformatf("seq_%0d", agent));
                         seq.num = configuration.num_packets_per_agent[agent];
-                        seq.agent_id = agent;
                         
                         seq.start(env.agents[agent].s0);
                         
                         `uvm_info("TEST", $sformatf("Agente %0d completado: %0d paquetes", agent, seq.num), UVM_MEDIUM)
                     end
+                end else begin
+                    `uvm_info("TEST", $sformatf("Agente %0d: 0 paquetes - omitido", agent), UVM_HIGH)
                 end
             end
-        join
+        join // Espera a que TODOS los agentes de esta prueba terminen
         
-        // Pausa para que los últimos paquetes entren al DUT
-        #1000;
+        // Pequeña pausa para que los últimos paquetes entren al DUT
+        #100;
     endtask
 endclass
