@@ -80,9 +80,9 @@ class test extends uvm_test;
     virtual task monitor_progress();
         longint start_time = $time;
         longint last_progress_time = $time;
-        last_count = 0;
-        current_count;
-        stall_count = 0;
+        int last_count = 0;
+        int current_count;
+        int stall_count = 0;
         
         `uvm_info("TEST_MONITOR", "Iniciando monitoreo de progreso...", UVM_LOW)
         
