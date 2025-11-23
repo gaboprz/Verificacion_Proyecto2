@@ -19,8 +19,8 @@ class test extends uvm_test;
     // ========== NUEVO: Variables para monitoreo ==========
     int total_packets_to_send = 0;
     longint progress_check_interval = 10000; // 10us entre checks
-    longint stall_threshold = 100000; // 100us sin progreso = stall
-    longint max_test_time = 1000000; // 1ms tiempo máximo total
+    longint stall_threshold = 20000; // 100us sin progreso = stall
+    longint max_test_time = 100000; // 1ms tiempo máximo total
     bit test_completed_normally = 0;
 
     int last_count;
@@ -61,7 +61,14 @@ class test extends uvm_test;
         test_config_t prueba;
         
         // PRUEBA 1: Solo 1 paquete en agente 1
-        prueba.name = "Prueba 1 - Un paquete en agente 1";
+        prueba.name = "Prueba 1";
+        prueba.num_packets_per_agent = '{
+            0: 40,  1: 40,  2: 20,  3:20,  4: 30,  5: 10,  6: 30,  7: 30,
+            8: 25,  9: 30,  10: 20, 11: 30, 12: 10, 13: 10, 14: 10, 15: 20
+        };
+        test_list.push_back(prueba);
+
+        prueba.name = "Prueba 2";
         prueba.num_packets_per_agent = '{
             0: 40,  1: 40,  2: 20,  3:20,  4: 30,  5: 10,  6: 30,  7: 30,
             8: 25,  9: 30,  10: 20, 11: 30, 12: 10, 13: 10, 14: 10, 15: 20
