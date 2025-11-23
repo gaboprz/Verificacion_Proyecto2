@@ -8,7 +8,7 @@ class mesh_pkt extends uvm_sequence_item;
   rand bit                  mode;
   rand bit [`PAYLOAD_W-1:0] payload;
 
-  // >>> NUEVO: jitter entre envíos (en ciclos de clk)
+  // jitter entre envíos
   rand int unsigned         idle_cycles;
 
   // Vector listo para el DUT
@@ -16,11 +16,6 @@ class mesh_pkt extends uvm_sequence_item;
 
   // Observación (monitor)
   int unsigned              egress_id;
-
-  // ========== NUEVO: IDs para debugging ==========
-  int sequence_id;          // ID de secuencia (seteado por la sequence)
-  static int global_id = 0; // ID global único
-  int instance_id;          // ID de instancia
 
   // Constraints
   constraint c_nxt_no_bcast { nxt_jump != 8'hFF; }
@@ -35,14 +30,8 @@ class mesh_pkt extends uvm_sequence_item;
 
   constraint c_idle { idle_cycles inside {[0:20]}; }
 
-  // ========== NUEVO: Payload con rango amplio ==========
-  constraint c_payload_range {
-    payload inside {[1:(1 << `PAYLOAD_W) - 100]}; // Dejar margen
-  }
-
   function new(string name="mesh_pkt"); 
     super.new(name); 
-    instance_id = global_id++; // Asignar ID único
   endfunction
 
   function void pack_bits();
@@ -60,7 +49,7 @@ class mesh_pkt extends uvm_sequence_item;
   endfunction
 
   function string convert2str();
-    return $sformatf("seq_id=%0d inst_id=%0d to[%0d,%0d] mode=%0b payload=0x%0h idle=%0dcy egress_id=%0d",
-                     sequence_id, instance_id, target_row, target_col, mode, payload, idle_cycles, egress_id);
+    return $sformatf("to[%0d,%0d] mode=%0b payload=0x%0h idle=%0dcy egress_id=%0d",
+                     target_row, target_col, mode, payload, idle_cycles, egress_id);
   endfunction
 endclass
