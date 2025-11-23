@@ -8,6 +8,9 @@ class mesh_pkt extends uvm_sequence_item;
   rand bit                  mode;
   rand bit [`PAYLOAD_W-1:0] payload;
 
+  // >>> NUEVO: válido/ inválido
+  rand bit                  dest_valid;   // 1 = destino válido, 0 = inválido
+
   // >>> NUEVO: jitter entre envíos (en ciclos de clk)
   rand int unsigned         idle_cycles;
 
@@ -18,13 +21,12 @@ class mesh_pkt extends uvm_sequence_item;
   int unsigned              egress_id;
 
 
-  bit                       dest_valid; // NO rand
   // Constraints
   constraint c_nxt_no_bcast { nxt_jump != 8'hFF; }
 
-  constraint c_dest_valid_or_invalid {
-
-    // VÁLIDO (igual a tu c_external_device original)
+  // Si dest_valid==1 → coordenadas de terminal externa
+  // Si dest_valid==0 → coordenadas que NO sean terminal externa
+  constraint c_dest_switch {
     dest_valid -> (
       (target_row == 0 && target_col inside {1,2,3,4}) ||
       (target_col == 0 && target_row inside {1,2,3,4}) ||
@@ -32,7 +34,6 @@ class mesh_pkt extends uvm_sequence_item;
       (target_col == 5 && target_row inside {1,2,3,4})
     );
 
-    // INVÁLIDO: NO está en ese conjunto
     !dest_valid -> !(
       (target_row == 0 && target_col inside {1,2,3,4}) ||
       (target_col == 0 && target_row inside {1,2,3,4}) ||
@@ -42,8 +43,8 @@ class mesh_pkt extends uvm_sequence_item;
   }
 
   // >>> Rango simple y seguro para la holgura entre envíos
-  //     (ajústalo a gusto o déjalo así)
   constraint c_idle { idle_cycles inside {[0:20]}; }
+
 
   function new(string name="mesh_pkt"); super.new(name); endfunction
 
