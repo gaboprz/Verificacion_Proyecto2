@@ -2,4 +2,4 @@ Command Line: /mnt/vol_NFS_rh003/tools/vcs/R-2020.12-SP2/linux64/bin/elabcom -lo
 uname(Linux redhat003 4.18.0-553.74.1.el8_10.x86_64 #1 SMP Sun Sep 7 09:23:35 EDT 2025 x86_64)
 [INFO] error/warning message 'C00388' has been suppressed.
 [INFO] error/warning message 'C00389' has been suppressed.
-au time 2.405899 1.782602 0.254956 delta 121446400 121446400 total 229908480 229908480
+au time 2.338795 1.743005 0.219695 delta 121516032 121516032 total 229978112 229978112

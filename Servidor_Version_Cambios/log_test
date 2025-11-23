@@ -3,7 +3,7 @@ Command: vcs -Mupdate tb.sv -o salida -full64 -sverilog -ntb_opts uvm +incdir+/m
 -debug_region+cell+encrypt -l log_test +lint=TFIPC-L -cm line+tgl+cond+fsm+branch+assert \
 
                          Chronologic VCS (TM)
-       Version R-2020.12-SP2_Full64 -- Sat Nov 22 22:55:53 2025
+       Version R-2020.12-SP2_Full64 -- Sat Nov 22 23:28:09 2025
 
                     Copyright (c) 1991 - 2021 Synopsys, Inc.
    This software and the associated documentation are proprietary to Synopsys,
@@ -391,62 +391,37 @@ Notice: Ports coerced to inout, use -notice for details
 Starting vcs inline pass...
 39 modules and 0 UDP read.
 recompiling package vcs_paramclassrepository
-recompiling package _vcs_DPI_package
-recompiling package uvm_pkg
-recompiling package _vcs_msglog
-recompiling module uvm_custom_install_recording
 recompiling module uvm_custom_install_verdi_recording
-recompiling module router_external_if
 recompiling module prll_d_reg
 recompiling module prll_d_ltch_no_rst
 recompiling module prll_d_ltch
-recompiling module neg_edge
-recompiling module fifo_flops
 recompiling module fifo_ltch
 recompiling module fifo_ltch_no_rst
-recompiling module rst_lgc
 recompiling module ntrpt_cam_fifo
 recompiling module mem_latch
-recompiling module tri_buf
-recompiling module parallel_serial
 recompiling module serializer
-recompiling module Read_st_Mchn
-recompiling module Write_st_Mchn
-recompiling module bs_ntrfs
-recompiling module bs_gnrtr
-recompiling module Arbiter_st_Mchn
-recompiling module bs_ntrfs_n_rbtr
-recompiling module bs_gnrtr_n_rbtr
 recompiling module prll_rgstr
-recompiling module prll_bs_ntrfs
-recompiling module prll_bs_gnrtr_n_rbtr_fifo
 recompiling module conector
-recompiling module router_bus_gnrtr
 recompiling module router_bus_interface
-recompiling module tri_buf_mux
-recompiling module Router_arbiter
 recompiling module mesh_gnrtr
-recompiling module prll_bus_interface_cn_rbtr
-recompiling module prll_bus_gnrtr_cn_rbtr
 recompiling module tb
-All of 39 modules done
+15 of 39 modules done
+	However, due to incremental compilation, only 15 modules need to be compiled. 
 rm -f _cuarc*.so _csrc*.so pre_vcsobj_*.so share_vcsobj_*.so
-g++ -w  -pipe -DVCS -DUVM_DPI_DO_TYPE_CHECK -fPIC -O -I/mnt/vol_NFS_rh003/tools/vcs/R-2020.12-SP2/include \
--c /mnt/vol_NFS_rh003/tools/vcs/R-2020.12-SP2/etc/uvm/dpi/uvm_dpi.cc
-g++ -w  -pipe -DVCS -DUVM_DPI_DO_TYPE_CHECK -fPIC -O -I/mnt/vol_NFS_rh003/tools/vcs/R-2020.12-SP2/include \
--c /mnt/vol_NFS_rh003/tools/vcs/R-2020.12-SP2/etc/uvm/verdi/dpi/uvm_verdi_dpi.cpp \
+ld -shared  -Bsymbolic --no-relax  -o .//../salida.daidir//_cuarc0.so objs/amcQw_d.o \
 
+rm -f _cuarc0.so
 if [ -x ../salida ]; then chmod a-x ../salida; fi
 g++  -o ../salida      -rdynamic  -Wl,-rpath='$ORIGIN'/salida.daidir -Wl,-rpath=./salida.daidir \
 -Wl,-rpath=/mnt/vol_NFS_rh003/tools/vcs/R-2020.12-SP2/linux64/lib -L/mnt/vol_NFS_rh003/tools/vcs/R-2020.12-SP2/linux64/lib \
--Wl,-rpath-link=./  /usr/lib64/libnuma.so.1 uvm_dpi.o uvm_verdi_dpi.o   objs/amcQw_d.o \
-_3262268_archive_1.so  SIM_l.o      rmapats_mop.o rmapats.o rmar.o rmar_nd.o  rmar_llvm_0_1.o \
-rmar_llvm_0_0.o           -lvirsim -lerrorinf -lsnpsmalloc -lvfs    -lvcsnew -lsimprofile \
--lreader_common /mnt/vol_NFS_rh003/tools/vcs/R-2020.12-SP2/linux64/lib/libBA.a -luclinative \
-/mnt/vol_NFS_rh003/tools/vcs/R-2020.12-SP2/linux64/lib/vcs_tls.o   -Wl,-whole-archive \
+-Wl,-rpath-link=./  /usr/lib64/libnuma.so.1 uvm_dpi.o uvm_verdi_dpi.o     _3273425_archive_1.so \
+_prev_archive_1.so _cuarc0.so  SIM_l.o      rmapats_mop.o rmapats.o rmar.o rmar_nd.o \
+rmar_llvm_0_1.o rmar_llvm_0_0.o           -lvirsim -lerrorinf -lsnpsmalloc -lvfs \
+-lvcsnew -lsimprofile -lreader_common /mnt/vol_NFS_rh003/tools/vcs/R-2020.12-SP2/linux64/lib/libBA.a \
+-luclinative /mnt/vol_NFS_rh003/tools/vcs/R-2020.12-SP2/linux64/lib/vcs_tls.o   -Wl,-whole-archive \
 -lvcsucli    -Wl,-no-whole-archive       ./../salida.daidir/vc_hdrs.o  _vcs_pli_stub_.o \
 /mnt/vol_NFS_rh003/tools/vcs/R-2020.12-SP2/linux64/lib/vcs_save_restore_new.o /mnt/vol_NFS_rh003/tools/verdi/R-2020.12-SP2/share/PLI/VCS/LINUX64/pli.a \
 -ldl  -lc -lm -lpthread -ldl 
 ../salida up to date
-CPU time: 35.734 seconds to compile + 2.319 seconds to elab + 1.695 seconds to link
+CPU time: 30.504 seconds to compile + 2.109 seconds to elab + 1.551 seconds to link
 Verdi KDB elaboration done and the database successfully generated: 0 error(s), 0 warning(s)
