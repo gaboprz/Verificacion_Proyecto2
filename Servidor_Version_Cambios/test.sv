@@ -11,7 +11,6 @@ class test extends uvm_test;
         typedef struct {
         string name;
         int num_packets_per_agent[`NUM_DEVS];
-        bit use_valid_destinations;
     } test_config_t;
     
     // Lista de pruebas a ejecutar
@@ -67,7 +66,6 @@ class test extends uvm_test;
             0: 40,  1: 40,  2: 20,  3:20,  4: 30,  5: 10,  6: 30,  7: 30,
             8: 25,  9: 30,  10: 20, 11: 30, 12: 10, 13: 10, 14: 10, 15: 20
         };
-        prueba.use_valid_destinations = 1;
         test_list.push_back(prueba);
 
         prueba.name = "Prueba 2";
@@ -75,8 +73,9 @@ class test extends uvm_test;
             0: 40,  1: 40,  2: 20,  3:20,  4: 30,  5: 10,  6: 30,  7: 30,
             8: 25,  9: 30,  10: 20, 11: 30, 12: 10, 13: 10, 14: 10, 15: 20
         };
-        prueba.use_valid_destinations = 1;
         test_list.push_back(prueba);
+
+        
         
         `uvm_info("TEST_SETUP", $sformatf("Configuradas %0d pruebas", test_list.size()), UVM_LOW)
     endfunction

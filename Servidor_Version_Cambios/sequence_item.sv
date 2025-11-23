@@ -17,29 +17,16 @@ class mesh_pkt extends uvm_sequence_item;
   // Observación (monitor)
   int unsigned              egress_id;
 
-  bit use_valid_destinations;
-
   // Constraints
   constraint c_nxt_no_bcast { nxt_jump != 8'hFF; }
 
-
   constraint c_external_device {
-    if (use_valid_destinations) {
-      // Solo destinos que sabemos que funcionan
-      ((target_row == 0 && target_col inside {1,2,3,4}) ||
-        (target_col == 0 && target_row inside {1,2,3,4}) ||
-        (target_row == 5 && target_col inside {1,2,3,4}) ||
-        (target_col == 5 && target_row inside {1,2,3,4}) )             // [5,1], [5,4]
-    };
+    ( (target_row == 0 && target_col inside {1,2,3,4}) ||
+      (target_col == 0 && target_row inside {1,2,3,4}) ||
+      (target_row == 5 && target_col inside {1,2,3,4}) ||
+      (target_col == 5 && target_row inside {1,2,3,4})
+    );
   }
-
-  constraint c_random_raw_column {
-    if (!use_valid_destinations) {
-      // Destinos aleatorios para estresar
-      (target_row inside {0,1,2,3,4,5}) && (target_col inside {0,1,2,3,4,5})
-    };
-  }
-
 
   // >>> Rango simple y seguro para la holgura entre envíos
   //     (ajústalo a gusto o déjalo así)
