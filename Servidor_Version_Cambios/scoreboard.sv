@@ -75,11 +75,6 @@ class mesh_scoreboard extends uvm_scoreboard;
   // ========== NUEVO: Variable para trackear el driver actual ==========
   int current_driver_id = -1;
 
-  // ========== NUEVO: Variables para gráficos GNUplot ==========
-  string gnuplot_data_filename = "latency_data.dat";
-  string gnuplot_script_filename = "plot_latency.gnu";
-  int gnuplot_data_file;
-
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
     ingress_imp = new("ingress_imp", this);
@@ -167,87 +162,6 @@ class mesh_scoreboard extends uvm_scoreboard;
     end
   endfunction
 
-  // ========== NUEVO: Función para crear archivo de datos para GNUplot ==========
-  function void create_gnuplot_data_file();
-    gnuplot_data_file = $fopen(gnuplot_data_filename, "w");
-    if (gnuplot_data_file == 0) begin
-      `uvm_error("SCB_GNUPLOT", $sformatf("No se pudo crear el archivo de datos para GNUplot: %s", gnuplot_data_filename))
-      return;
-    end
-    
-    // Escribir cabecera del archivo de datos
-    $fwrite(gnuplot_data_file, "# Terminal Average_Latency(ns) Received_Packets\n");
-    `uvm_info("SCB_GNUPLOT", $sformatf("Archivo de datos para GNUplot creado: %s", gnuplot_data_filename), UVM_LOW)
-  endfunction
-
-  // ========== NUEVO: Función para escribir datos de latencia para GNUplot ==========
-  function void write_latency_data_to_gnuplot();
-    for (int d = 0; d < `NUM_DEVS; d++) begin
-      if (count_per_dev[d] > 0) begin
-        longint avg = sum_latency_per_dev[d] / count_per_dev[d];
-        $fwrite(gnuplot_data_file, "%0d %0t %0d\n", d, avg, count_per_dev[d]);
-      end else begin
-        $fwrite(gnuplot_data_file, "%0d 0 0\n", d);
-      end
-    end
-  endfunction
-
-  // ========== NUEVO: Función para crear script de GNUplot ==========
-  function void create_gnuplot_script();
-    int script_file = $fopen(gnuplot_script_filename, "w");
-    if (script_file == 0) begin
-      `uvm_error("SCB_GNUPLOT", $sformatf("No se pudo crear el script de GNUplot: %s", gnuplot_script_filename))
-      return;
-    end
-    
-    $fwrite(script_file, "set terminal pngcairo size 1200,800 enhanced font 'Arial,12'\n");
-    $fwrite(script_file, "set output 'latency_by_terminal.png'\n");
-    $fwrite(script_file, "set title 'Latencia Promedio por Terminal\\n(Test con %0d paquetes)' font 'Arial-Bold,14'\n", packets_from_driver);
-    $fwrite(script_file, "set xlabel 'Terminal' font 'Arial-Bold,12'\n");
-    $fwrite(script_file, "set ylabel 'Latencia Promedio (ns)' font 'Arial-Bold,12'\n");
-    $fwrite(script_file, "set style data histograms\n");
-    $fwrite(script_file, "set style histogram cluster gap 1\n");
-    $fwrite(script_file, "set style fill solid 0.8 border -1\n");
-    $fwrite(script_file, "set boxwidth 0.8\n");
-    $fwrite(script_file, "set grid ytics lt 0 lw 1 lc rgb '#DDDDDD'\n");
-    $fwrite(script_file, "set grid xtics lt 0 lw 1 lc rgb '#DDDDDD'\n");
-    $fwrite(script_file, "set key top right\n");
-    $fwrite(script_file, "set xtics 0,1,%0d\n", `NUM_DEVS-1);
-    $fwrite(script_file, "set yrange [0:*]\n");
-    $fwrite(script_file, "plot '%s' using 2:xtic(1) title 'Latencia Promedio (ns)' lc rgb '#2E86AB', \\\n", gnuplot_data_filename);
-    $fwrite(script_file, "     '' using 0:2:3 with labels offset 0,1 title ''\n");
-    $fwrite(script_file, "set output\n");
-    $fwrite(script_file, "print 'Gráfico generado: latency_by_terminal.png'\n");
-    
-    $fclose(script_file);
-    `uvm_info("SCB_GNUPLOT", $sformatf("Script de GNUplot creado: %s", gnuplot_script_filename), UVM_LOW)
-  endfunction
-
-  // ========== NUEVO: Función para ejecutar GNUplot ==========
-  function void run_gnuplot();
-    string command;
-    int result;
-    
-    command = $sformatf("gnuplot %s", gnuplot_script_filename);
-    `uvm_info("SCB_GNUPLOT", $sformatf("Ejecutando: %s", command), UVM_LOW);
-    
-    result = $system(command);
-    
-    if (result == 0) begin
-      `uvm_info("SCB_GNUPLOT", "Gráfico generado exitosamente: latency_by_terminal.png", UVM_LOW)
-    end else begin
-      `uvm_warning("SCB_GNUPLOT", "No se pudo ejecutar GNUplot. Asegúrese de que esté instalado en el sistema.")
-    end
-  endfunction
-
-  // ========== NUEVO: Función para cerrar archivo de datos GNUplot ==========
-  function void close_gnuplot_data_file();
-    if (gnuplot_data_file != 0) begin
-      $fclose(gnuplot_data_file);
-      `uvm_info("SCB_GNUPLOT", $sformatf("Archivo de datos GNUplot cerrado: %s", gnuplot_data_filename), UVM_LOW)
-    end
-  endfunction
-
   // ========== NUEVO: Métodos para comunicación con test ==========
   function int get_current_progress();
     return total_packets_received_by_monitor;
@@ -284,9 +198,6 @@ class mesh_scoreboard extends uvm_scoreboard;
     
     // ========== NUEVO: Crear archivo CSV al inicio del test ==========
     create_csv_file();
-    
-    // ========== NUEVO: Crear archivos para GNUplot ==========
-    create_gnuplot_data_file();
     
     `uvm_info("SCB_SYNC", $sformatf("Expecting %0d total packets to EXIT the mesh", expected_total_packets), UVM_LOW)
   endfunction
@@ -501,22 +412,6 @@ class mesh_scoreboard extends uvm_scoreboard;
     `uvm_info("SCB_CSV", "Reporte CSV generado exitosamente", UVM_LOW)
   endfunction
 
-  // ========== NUEVO: Función para generar reporte GNUplot completo ==========
-  function void generate_gnuplot_report();
-    `uvm_info("SCB_GNUPLOT", "Generando datos para GNUplot...", UVM_LOW)
-    
-    // Escribir datos de latencia
-    write_latency_data_to_gnuplot();
-    
-    // Crear script de GNUplot
-    create_gnuplot_script();
-    
-    // Ejecutar GNUplot
-    run_gnuplot();
-    
-    `uvm_info("SCB_GNUPLOT", "Reporte GNUplot generado exitosamente", UVM_LOW)
-  endfunction
-
   // ========== NUEVO: Función para reporte detallado ==========
   function void generate_detailed_report();
     lost_packets = 0;
@@ -562,14 +457,8 @@ class mesh_scoreboard extends uvm_scoreboard;
     // ========== NUEVO: Generar reporte CSV ==========
     generate_csv_report();
 
-    // ========== NUEVO: Generar reporte GNUplot ==========
-    generate_gnuplot_report();
-
     // ========== NUEVO: Cerrar archivo CSV ==========
     close_csv_file();
-
-    // ========== NUEVO: Cerrar archivo de datos GNUplot ==========
-    close_gnuplot_data_file();
 
     // Verificar paquetes pendientes en by_key
     foreach (by_key[key]) begin
