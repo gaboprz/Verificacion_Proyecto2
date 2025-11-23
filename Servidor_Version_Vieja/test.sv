@@ -18,6 +18,8 @@ class test extends uvm_test;
     
     // Contador total de paquetes
     int total_packets_to_send = 0;
+
+    int current_progress;
     
     function new(string name = "test", uvm_component parent=null);
         super.new(name, parent);
@@ -93,7 +95,7 @@ class test extends uvm_test;
             #100; // Esperar 100 unidades de tiempo
             timeout_counter++;
             
-            int current_progress = env.scb.get_current_progress();
+            current_progress = env.scb.get_current_progress();
             
             // Verificar progreso
             if (current_progress > last_progress) {
