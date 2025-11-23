@@ -46,7 +46,7 @@ class mesh_pkt extends uvm_sequence_item;
         (target_row == 5 && target_col inside {1,2,3,4}) ||
         (target_col == 5 && target_row inside {1,2,3,4})
       );
-  endconstraint
+  }
 
   constraint c_idle { idle_cycles inside {[0:20]}; }
 
