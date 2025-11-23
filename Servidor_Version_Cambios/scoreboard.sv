@@ -45,6 +45,8 @@ class mesh_scoreboard extends uvm_scoreboard;
 
   int i;
 
+  mesh_pkt local_buffer[$];
+
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
     ingress_imp = new("ingress_imp", this);
@@ -128,7 +130,7 @@ class mesh_scoreboard extends uvm_scoreboard;
     processing_monitor_buffer = 1;
     
     // Crear una copia local del buffer para procesar de forma segura
-    mesh_pkt local_buffer[$] = monitor_buffer;
+    local_buffer[$] = monitor_buffer;
     monitor_buffer.delete();
     
     // Procesar todos los paquetes en la copia local
