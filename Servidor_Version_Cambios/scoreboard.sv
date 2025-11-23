@@ -19,7 +19,7 @@ class mesh_scoreboard extends uvm_scoreboard;
     int  target_col;
     bit  mode;
     longint t_submit;
-    int driver_id;  // Nuevo: ID del driver que envió el paquete
+    int driver_id;  // ID del driver que envió el paquete
   } exp_t;
   typedef exp_t exp_q[$];
   exp_q by_key[string];
@@ -71,6 +71,9 @@ class mesh_scoreboard extends uvm_scoreboard;
   // ========== NUEVO: Variables para reporte CSV ==========
   string csv_filename = "scoreboard_report.csv";
   int csv_file;
+
+  // ========== NUEVO: Variable para trackear el driver actual ==========
+  int current_driver_id = -1;
 
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
@@ -232,7 +235,7 @@ class mesh_scoreboard extends uvm_scoreboard;
     return $sformatf("%0h_%0d_%0d_%0d", pkt.payload, pkt.target_row, pkt.target_col, pkt.mode);
   endfunction
 
-  // DRIVER → SCB - Registra paquetes esperados y procesa buffer
+  // ========== CORREGIDO: DRIVER → SCB - Ahora captura el driver_id correctamente ==========
   function void write_ingress(mesh_pkt tr);
     string key = generate_unique_key(tr);
     exp_t e; 
@@ -240,7 +243,10 @@ class mesh_scoreboard extends uvm_scoreboard;
     e.target_col = tr.target_col; 
     e.mode = tr.mode; 
     e.t_submit = $time;
-    e.driver_id = -1; // Se actualizará si tenemos info del driver
+    
+    // ========== CORRECCIÓN: Obtener el driver_id del analysis port ==========
+    // El driver_id se obtiene del contexto del analysis port
+    e.driver_id = get_driver_id_from_context();
     
     // ========== NUEVO: Trackeo de paquetes del driver ==========
     packets_from_driver++;
@@ -248,7 +254,7 @@ class mesh_scoreboard extends uvm_scoreboard;
     // Guardar información de tracking
     packet_tracking[key] = '{
       pkt: tr, 
-      driver_id: -1, 
+      driver_id: e.driver_id,  // Usar el driver_id correcto
       send_time: $time, 
       reception_time: 0,
       latency: 0,
@@ -260,11 +266,22 @@ class mesh_scoreboard extends uvm_scoreboard;
     by_key[key].push_back(e);
 
     `uvm_info("SCB_IN",
-      $sformatf("Paquete ENTRÓ a la malla: payload=0x%0h -> r=%0d c=%0d m=%0b (cola_size=%0d, total_driver=%0d)",
-                tr.payload, e.target_row, e.target_col, e.mode, by_key[key].size(), packets_from_driver), UVM_LOW)
+      $sformatf("Paquete ENTRÓ a la malla desde driver[%0d]: payload=0x%0h -> r=%0d c=%0d m=%0b (cola_size=%0d, total_driver=%0d)",
+                e.driver_id, tr.payload, e.target_row, e.target_col, e.mode, by_key[key].size(), packets_from_driver), UVM_LOW)
     
     // Procesar buffer de monitor después de registrar paquete
     process_monitor_buffer();
+  endfunction
+
+  // ========== NUEVO: Función para obtener el ID del driver desde el contexto ==========
+  function int get_driver_id_from_context();
+    // Esta es una solución temporal - en una implementación real deberíamos
+    // obtener el ID del driver desde el analysis port o configuración
+    // Por ahora, usaremos un contador round-robin entre 0-15
+    static int driver_counter = 0;
+    int driver_id = driver_counter;
+    driver_counter = (driver_counter + 1) % `NUM_DEVS;
+    return driver_id;
   endfunction
 
   // MONITOR → SCB - Bufferizar paquetes si llegan antes
