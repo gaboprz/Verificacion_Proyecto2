@@ -17,8 +17,10 @@ class mesh_pkt extends uvm_sequence_item;
   // Observación (monitor)
   int unsigned              egress_id;
 
-  // ========== NUEVO: Contador estático para payloads únicos ==========
-  static bit [`PAYLOAD_W-1:0] unique_payload_counter = 1;
+  // ========== NUEVO: IDs para debugging ==========
+  int sequence_id;          // ID de secuencia (seteado por la sequence)
+  static int global_id = 0; // ID global único
+  int instance_id;          // ID de instancia
 
   // Constraints
   constraint c_nxt_no_bcast { nxt_jump != 8'hFF; }
@@ -31,27 +33,16 @@ class mesh_pkt extends uvm_sequence_item;
     );
   }
 
-  // >>> Rango simple y seguro para la holgura entre envíos
   constraint c_idle { idle_cycles inside {[0:20]}; }
 
-  // ========== NUEVO: Payload secuencial y único ==========
-  constraint c_unique_payload {
-    payload == unique_payload_counter;
+  // ========== NUEVO: Payload con rango amplio ==========
+  constraint c_payload_range {
+    payload inside {[1:(1 << `PAYLOAD_W) - 100]}; // Dejar margen
   }
 
   function new(string name="mesh_pkt"); 
     super.new(name); 
-  endfunction
-
-  function void post_randomize();
-    // ========== NUEVO: Incrementar el contador después de cada randomize ==========
-    if (unique_payload_counter < ((1 << `PAYLOAD_W) - 1)) begin
-      unique_payload_counter++;
-    end else begin
-      unique_payload_counter = 1; // Reiniciar si llegamos al máximo
-      `uvm_warning("PAYLOAD", "Contador de payload reiniciado - posible duplicación")
-    end
-    pack_bits(); 
+    instance_id = global_id++; // Asignar ID único
   endfunction
 
   function void pack_bits();
@@ -64,8 +55,12 @@ class mesh_pkt extends uvm_sequence_item;
       raw_pkt[`PKG_SZ-18 -: `PAYLOAD_W] = payload;
   endfunction
 
+  function void post_randomize(); 
+    pack_bits(); 
+  endfunction
+
   function string convert2str();
-    return $sformatf("to[%0d,%0d] mode=%0b payload=0x%0h idle=%0dcy egress_id=%0d",
-                     target_row, target_col, mode, payload, idle_cycles, egress_id);
+    return $sformatf("seq_id=%0d inst_id=%0d to[%0d,%0d] mode=%0b payload=0x%0h idle=%0dcy egress_id=%0d",
+                     sequence_id, instance_id, target_row, target_col, mode, payload, idle_cycles, egress_id);
   endfunction
 endclass
