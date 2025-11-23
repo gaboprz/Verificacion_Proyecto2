@@ -17,15 +17,25 @@ class mesh_pkt extends uvm_sequence_item;
   // Observación (monitor)
   int unsigned              egress_id;
 
+  rand bit use_valid_destinations;
+
   // Constraints
   constraint c_nxt_no_bcast { nxt_jump != 8'hFF; }
 
   constraint c_external_device {
-    ( (target_row == 0 && target_col inside {1,2,3,4}) ||
-      (target_col == 0 && target_row inside {1,2,3,4}) ||
-      (target_row == 5 && target_col inside {1,2,3,4}) ||
-      (target_col == 5 && target_row inside {1,2,3,4})
-    );
+      if (use_valid_destinations) begin
+      ( (target_row == 0 && target_col inside {1,2,3,4}) ||
+        (target_col == 0 && target_row inside {1,2,3,4}) ||
+        (target_row == 5 && target_col inside {1,2,3,4}) ||
+        (target_col == 5 && target_row inside {1,2,3,4}) );
+    end
+    else begin
+      !(
+        (target_row == 0 && target_col inside {1,2,3,4}) ||
+        (target_col == 0 && target_row inside {1,2,3,4}) ||
+        (target_row == 5 && target_col inside {1,2,3,4}) ||
+        (target_col == 5 && target_row inside {1,2,3,4}) );
+    end
   }
 
   // >>> Rango simple y seguro para la holgura entre envíos
