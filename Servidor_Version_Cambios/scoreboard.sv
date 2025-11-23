@@ -54,7 +54,10 @@ class mesh_scoreboard extends uvm_scoreboard;
     mesh_pkt pkt;
     int driver_id;
     longint send_time;
+    longint reception_time; // NUEVO: tiempo de recepción
+    longint latency;        // NUEVO: latencia calculada
     bit received;
+    int egress_id;          // NUEVO: ID del monitor que recibió
   } packet_tracking_t;
   
   packet_tracking_t packet_tracking[string]; // key -> tracking info
@@ -65,11 +68,95 @@ class mesh_scoreboard extends uvm_scoreboard;
 
   int i;
 
+  // ========== NUEVO: Variables para reporte CSV ==========
+  string csv_filename = "scoreboard_report.csv";
+  int csv_file;
+
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
     ingress_imp = new("ingress_imp", this);
     egress_imp  = new("egress_imp" , this);
     test_completion_event = new("test_completion_event");
+  endfunction
+
+  // ========== NUEVO: Función para crear archivo CSV ==========
+  function void create_csv_file();
+    csv_file = $fopen(csv_filename, "w");
+    if (csv_file == 0) begin
+      `uvm_error("SCB_CSV", $sformatf("No se pudo crear el archivo CSV: %s", csv_filename))
+      return;
+    end
+    
+    // Escribir cabecera del CSV
+    $fwrite(csv_file, "PacketID,Payload,SourceAgent,TargetRow,TargetCol,Mode,SendTime,ReceptionTime,Latency,DestinationAgent,Status\n");
+    `uvm_info("SCB_CSV", $sformatf("Archivo CSV creado: %s", csv_filename), UVM_LOW)
+  endfunction
+
+  // ========== NUEVO: Función para escribir paquete en CSV ==========
+  function void write_packet_to_csv(string key, packet_tracking_t tracking);
+    string status;
+    longint reception_time;
+    longint latency;
+    int destination_agent;
+    
+    if (tracking.received) begin
+      status = "RECEIVED";
+      reception_time = tracking.reception_time;
+      latency = tracking.latency;
+      destination_agent = tracking.egress_id;
+    end else begin
+      status = "LOST";
+      reception_time = 0;
+      latency = 0;
+      destination_agent = -1;
+    end
+    
+    $fwrite(csv_file, "%s,0x%0h,%0d,%0d,%0d,%0d,%0t,%0t,%0t,%0d,%s\n",
+            key,
+            tracking.pkt.payload,
+            tracking.driver_id,
+            tracking.pkt.target_row,
+            tracking.pkt.target_col,
+            tracking.pkt.mode,
+            tracking.send_time,
+            reception_time,
+            latency,
+            destination_agent,
+            status);
+  endfunction
+
+  // ========== NUEVO: Función para escribir resumen en CSV ==========
+  function void write_summary_to_csv();
+    $fwrite(csv_file, "\n\n=== SUMMARY ===\n");
+    $fwrite(csv_file, "Metric,Value\n");
+    $fwrite(csv_file, "TotalPacketsFromDrivers,%0d\n", packets_from_driver);
+    $fwrite(csv_file, "TotalPacketsReceived,%0d\n", received_packets);
+    $fwrite(csv_file, "TotalPacketsLost,%0d\n", lost_packets);
+    $fwrite(csv_file, "SuccessRate,%.2f%%\n", (received_packets * 100.0) / packets_from_driver);
+    
+    $fwrite(csv_file, "\n=== AVERAGE LATENCY PER TERMINAL ===\n");
+    $fwrite(csv_file, "Terminal,AvgLatency,ReceivedPackets\n");
+    for (int d = 0; d < `NUM_DEVS; d++) begin
+      if (count_per_dev[d] > 0) begin
+        longint avg = sum_latency_per_dev[d] / count_per_dev[d];
+        $fwrite(csv_file, "Terminal_%0d,%0t,%0d\n", d, avg, count_per_dev[d]);
+      end else begin
+        $fwrite(csv_file, "Terminal_%0d,No packets,0\n", d);
+      end
+    end
+    
+    $fwrite(csv_file, "\n=== TEST INFORMATION ===\n");
+    $fwrite(csv_file, "ExpectedPackets,%0d\n", expected_total_packets);
+    $fwrite(csv_file, "ActualReceived,%0d\n", total_packets_received_by_monitor);
+    $fwrite(csv_file, "CompletionStatus,%s\n", force_completion ? "FORCED" : "NORMAL");
+  endfunction
+
+  // ========== NUEVO: Función para cerrar archivo CSV ==========
+  function void close_csv_file();
+    if (csv_file != 0) begin
+      $fclose(csv_file);
+      `uvm_info("SCB_CSV", $sformatf("Archivo CSV cerrado: %s", csv_filename), UVM_LOW)
+    end
   endfunction
 
   // ========== NUEVO: Métodos para comunicación con test ==========
@@ -105,6 +192,10 @@ class mesh_scoreboard extends uvm_scoreboard;
     last_progress_count = 0;
     last_progress_time = 0;
     force_completion = 0;
+    
+    // ========== NUEVO: Crear archivo CSV al inicio del test ==========
+    create_csv_file();
+    
     `uvm_info("SCB_SYNC", $sformatf("Expecting %0d total packets to EXIT the mesh", expected_total_packets), UVM_LOW)
   endfunction
 
@@ -155,13 +246,19 @@ class mesh_scoreboard extends uvm_scoreboard;
     packets_from_driver++;
     
     // Guardar información de tracking
-    packet_tracking[key] = '{pkt: tr, driver_id: -1, send_time: $time, received: 0};
+    packet_tracking[key] = '{
+      pkt: tr, 
+      driver_id: -1, 
+      send_time: $time, 
+      reception_time: 0,
+      latency: 0,
+      received: 0,
+      egress_id: -1
+    };
     packet_keys.push_back(key);
     
     by_key[key].push_back(e);
 
-    
-    
     `uvm_info("SCB_IN",
       $sformatf("Paquete ENTRÓ a la malla: payload=0x%0h -> r=%0d c=%0d m=%0b (cola_size=%0d, total_driver=%0d)",
                 tr.payload, e.target_row, e.target_col, e.mode, by_key[key].size(), packets_from_driver), UVM_LOW)
@@ -204,9 +301,12 @@ class mesh_scoreboard extends uvm_scoreboard;
         expected = by_key[key].pop_front();
         monitor_buffer.delete(i);
 
-        // ========== NUEVO: Actualizar tracking ==========
+        // ========== NUEVO: Actualizar tracking con más información ==========
         if (packet_tracking.exists(key)) begin
           packet_tracking[key].received = 1;
+          packet_tracking[key].reception_time = $time;
+          packet_tracking[key].latency = $time - expected.t_submit;
+          packet_tracking[key].egress_id = pkt.egress_id;
         end
 
         // Comparar header
@@ -277,6 +377,24 @@ class mesh_scoreboard extends uvm_scoreboard;
     processing_monitor_buffer = 0;
   endfunction
 
+  // ========== NUEVO: Función para generar reporte CSV completo ==========
+  function void generate_csv_report();
+    `uvm_info("SCB_CSV", "Generando reporte CSV completo...", UVM_LOW)
+    
+    // Escribir todos los paquetes en el CSV
+    foreach (packet_keys[i]) begin
+      string key = packet_keys[i];
+      if (packet_tracking.exists(key)) begin
+        write_packet_to_csv(key, packet_tracking[key]);
+      end
+    end
+    
+    // Escribir resumen
+    write_summary_to_csv();
+    
+    `uvm_info("SCB_CSV", "Reporte CSV generado exitosamente", UVM_LOW)
+  endfunction
+
   // ========== NUEVO: Función para reporte detallado ==========
   function void generate_detailed_report();
     lost_packets = 0;
@@ -318,6 +436,12 @@ class mesh_scoreboard extends uvm_scoreboard;
 
     // Generar reporte detallado
     generate_detailed_report();
+
+    // ========== NUEVO: Generar reporte CSV ==========
+    generate_csv_report();
+
+    // ========== NUEVO: Cerrar archivo CSV ==========
+    close_csv_file();
 
     // Verificar paquetes pendientes en by_key
     foreach (by_key[key]) begin
