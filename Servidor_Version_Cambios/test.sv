@@ -6,11 +6,14 @@ class test extends uvm_test;
     `uvm_component_utils(test)
 
     mesh_env env;
-    
+     
+     typedef enum {DEST_MODE_VALID, DEST_MODE_INVALID, DEST_MODE_MIXED} dest_mode_e;
+
     // Estructura para configurar cada prueba
-        typedef struct {
-        string name;
-        int num_packets_per_agent[`NUM_DEVS];
+      typedef struct {
+    string name;
+    int num_packets_per_agent[`NUM_DEVS];
+    dest_mode_e dest_mode;  
     } test_config_t;
     
     // Lista de pruebas a ejecutar
@@ -66,6 +69,7 @@ class test extends uvm_test;
             0: 40,  1: 40,  2: 20,  3:20,  4: 30,  5: 10,  6: 30,  7: 30,
             8: 25,  9: 30,  10: 20, 11: 30, 12: 10, 13: 10, 14: 10, 15: 20
         };
+        prueba.dest_mode = DEST_MODE_VALID;
         test_list.push_back(prueba);
 
         prueba.name = "Prueba 2";
@@ -73,6 +77,7 @@ class test extends uvm_test;
             0: 40,  1: 40,  2: 20,  3:20,  4: 30,  5: 10,  6: 30,  7: 30,
             8: 25,  9: 30,  10: 20, 11: 30, 12: 10, 13: 10, 14: 10, 15: 20
         };
+        prueba.dest_mode = DEST_MODE_VALID;
         test_list.push_back(prueba);
 
         
@@ -187,23 +192,26 @@ class test extends uvm_test;
     virtual task run_single_test(test_config_t configuration);
         fork
             for (int agent_id = 0; agent_id < `NUM_DEVS; agent_id++) begin
-                automatic int agent = agent_id;
-                if (configuration.num_packets_per_agent[agent] > 0) begin
-                    begin
-                        gen_mesh_seq seq = gen_mesh_seq::type_id::create($sformatf("seq_%0d", agent));
-                        seq.num = configuration.num_packets_per_agent[agent];
-                        
-                        seq.start(env.agents[agent].s0);
-                        
-                        `uvm_info("TEST", $sformatf("Agente %0d completado: %0d paquetes", agent, seq.num), UVM_MEDIUM)
-                    end
-                end else begin
-                    `uvm_info("TEST", $sformatf("Agente %0d: 0 paquetes - omitido", agent), UVM_HIGH)
+            automatic int agent = agent_id;
+            if (configuration.num_packets_per_agent[agent] > 0) begin
+                begin
+                gen_mesh_seq seq = gen_mesh_seq::type_id::create($sformatf("seq_%0d", agent));
+                seq.num       = configuration.num_packets_per_agent[agent];
+
+                seq.dest_mode = configuration.dest_mode;
+
+                seq.start(env.agents[agent].s0);
+
+                `uvm_info("TEST", $sformatf("Agente %0d completado: %0d paquetes", 
+                                            agent, seq.num), UVM_MEDIUM)
                 end
             end
+            else begin
+                `uvm_info("TEST", $sformatf("Agente %0d: 0 paquetes - omitido", agent), UVM_HIGH)
+            end
+            end
         join
-        
-        // Pequeña pausa para que los últimos paquetes entren al DUT
+
         #100;
     endtask
 endclass

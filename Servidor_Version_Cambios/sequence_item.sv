@@ -17,11 +17,24 @@ class mesh_pkt extends uvm_sequence_item;
   // Observación (monitor)
   int unsigned              egress_id;
 
+
+  bit                       dest_valid; // NO rand
   // Constraints
   constraint c_nxt_no_bcast { nxt_jump != 8'hFF; }
 
-  constraint c_external_device {
-    ( (target_row == 0 && target_col inside {1,2,3,4}) ||
+  constraint c_dest_valid_or_invalid {
+
+    // VÁLIDO (igual a tu c_external_device original)
+    dest_valid -> (
+      (target_row == 0 && target_col inside {1,2,3,4}) ||
+      (target_col == 0 && target_row inside {1,2,3,4}) ||
+      (target_row == 5 && target_col inside {1,2,3,4}) ||
+      (target_col == 5 && target_row inside {1,2,3,4})
+    );
+
+    // INVÁLIDO: NO está en ese conjunto
+    !dest_valid -> !(
+      (target_row == 0 && target_col inside {1,2,3,4}) ||
       (target_col == 0 && target_row inside {1,2,3,4}) ||
       (target_row == 5 && target_col inside {1,2,3,4}) ||
       (target_col == 5 && target_row inside {1,2,3,4})
