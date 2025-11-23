@@ -199,10 +199,10 @@ class test extends uvm_test;
             seq.num = configuration.num_packets_per_agent[agent];
 
             if (configuration.name == "Prueba 1") begin
-                seq.dest_mode = 1; // sólo destinos válidos
+                seq.dest_mode = 2; // sólo destinos válidos
             end
             else if (configuration.name == "Prueba 2") begin
-                seq.dest_mode = 1; // sólo destinos inválidos
+                seq.dest_mode = 2; // sólo destinos inválidos
             end
 
             seq.start(env.agents[agent].s0);
