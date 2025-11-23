@@ -17,7 +17,7 @@ class mesh_pkt extends uvm_sequence_item;
   // Observación (monitor)
   int unsigned              egress_id;
 
-  rand bit use_valid_destinations;
+  bit use_valid_destinations;
 
   // Constraints
   constraint c_nxt_no_bcast { nxt_jump != 8'hFF; }
