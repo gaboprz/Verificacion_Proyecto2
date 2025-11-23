@@ -18,9 +18,9 @@ class test extends uvm_test;
     
     // ========== NUEVO: Variables para monitoreo ==========
     int total_packets_to_send = 0;
-    longint progress_check_interval = 100000; // 10us entre checks
-    longint stall_threshold = 1000000; // 100us sin progreso = stall
-    longint max_test_time = 10000000; // 1ms tiempo máximo total
+    longint progress_check_interval = 10000; // 10us entre checks
+    longint stall_threshold = 20000; // 100us sin progreso = stall
+    longint max_test_time = 100000; // 1ms tiempo máximo total
     bit test_completed_normally = 0;
 
     int last_count;
@@ -122,7 +122,7 @@ class test extends uvm_test;
                     if (stall_count >= 3) begin
                         `uvm_error("TEST_STALL", 
                             $sformatf("STALL CRÍTICO: %0d stalls consecutivos. Forzando finalización del test.", stall_count))
-                        //env.scb.force_test_completion();
+                        env.scb.force_test_completion();
                         break;
                     end
                 end
@@ -141,7 +141,7 @@ class test extends uvm_test;
             `uvm_error("TEST_TIMEOUT", 
                 $sformatf("Timeout total alcanzado (%0t). Paquetes recibidos: %0d/%0d",
                          max_test_time, current_count, total_packets_to_send))
-            //env.scb.force_test_completion();
+            env.scb.force_test_completion();
         end
     endtask
 
