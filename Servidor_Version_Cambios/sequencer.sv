@@ -20,7 +20,7 @@ class gen_mesh_seq extends uvm_sequence #(mesh_pkt);
       case (dest_mode)
         0: void'( m_item.randomize() with { dest_valid == 1; } );
         1: void'( m_item.randomize() with { dest_valid == 0; } );
-        2: void'( m_item.randomize() with { dest_valid = (i % 2 == 0); } );
+        2: void'( m_item.randomize() with { dest_valid == (i % 2 == 0); } );
         default: void'( m_item.randomize() ); // mezcla
       endcase
 
