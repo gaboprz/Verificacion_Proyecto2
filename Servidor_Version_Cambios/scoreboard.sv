@@ -61,7 +61,9 @@ class mesh_scoreboard extends uvm_scoreboard;
   string packet_keys[$]; // Para mantener orden
 
   int lost_packets;
-    int received_packets;
+  int received_packets;
+
+  int i;
 
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
@@ -190,7 +192,7 @@ class mesh_scoreboard extends uvm_scoreboard;
     
     processing_monitor_buffer = 1;
     
-    int i = 0;
+    i = 0;
     while (i < monitor_buffer.size()) begin
       mesh_pkt pkt = monitor_buffer[i];
       string key = generate_unique_key(pkt);
