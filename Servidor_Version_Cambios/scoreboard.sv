@@ -27,7 +27,7 @@ class mesh_scoreboard extends uvm_scoreboard;
 
   // Chequeo de puerto exacto
   bit check_port_exact = 0;
-  int exp_port_from_rc[int][int]
+  int exp_port_from_rc[int][int];
 
   // Contadores
   int total_packets_received_by_monitor = 0;  // paquetes que SALEN del DUT
