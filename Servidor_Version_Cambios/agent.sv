@@ -5,6 +5,7 @@ class external_agent extends uvm_agent;
   monitor                   m0;
   uvm_sequencer #(mesh_pkt) s0;
 
+  // Identificador del terminal/dispositivo al que pertenece el agente
   int device_id;
 
   function new(string name="external_agent", uvm_component parent=null);
@@ -13,9 +14,13 @@ class external_agent extends uvm_agent;
 
   virtual function void build_phase(uvm_phase phase);
     super.build_phase(phase);
+
+    // Se crea el sequencer, el driver y el monitor
     s0 = uvm_sequencer#(mesh_pkt)::type_id::create($sformatf("s0_%0d", device_id), this);
     d0 = mesh_driver              ::type_id::create($sformatf("d0_%0d", device_id), this);
     m0 = monitor                  ::type_id::create($sformatf("m0_%0d", device_id), this);
+
+    // Se pasa el device_id al driver y al monitor para que sepan a qué terminal pertenecen
     d0.device_id = device_id;
     m0.device_id = device_id;
   endfunction
