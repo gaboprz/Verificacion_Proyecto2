@@ -75,6 +75,12 @@ class mesh_scoreboard extends uvm_scoreboard;
   // ========== NUEVO: Variable para trackear el driver actual ==========
   int current_driver_id = -1;
 
+  // ========== NUEVO: Variables para GNUplot ==========
+  string gnuplot_data_filename = "latency_data.dat";
+  string gnuplot_script_filename = "plot_latency.gp";
+  string plot_filename = "latency_plot.png";
+  bit generate_plot = 1; // Flag para activar/desactivar generación de gráfico
+
   function new(string name="mesh_scoreboard", uvm_component parent=null);
     super.new(name, parent);
     ingress_imp = new("ingress_imp", this);
@@ -448,6 +454,124 @@ class mesh_scoreboard extends uvm_scoreboard;
     end
   endfunction
 
+  // ========== NUEVO: Función para crear archivo de datos de GNUplot ==========
+  function void create_gnuplot_data_file();
+    int data_file;
+    data_file = $fopen(gnuplot_data_filename, "w");
+    if (data_file == 0) begin
+      `uvm_error("SCB_GNUPLOT", $sformatf("No se pudo crear el archivo de datos de GNUplot: %s", gnuplot_data_filename))
+      return;
+    end
+
+    // Escribir cabecera
+    $fwrite(data_file, "# Terminal Average_Latency(ns) Packet_Count\n");
+    
+    for (int d = 0; d < `NUM_DEVS; d++) begin
+      longint avg_latency = 0;
+      if (count_per_dev[d] > 0) begin
+        avg_latency = sum_latency_per_dev[d] / count_per_dev[d];
+      end
+      $fwrite(data_file, "%0d %0d %0d\n", d, avg_latency, count_per_dev[d]);
+    end
+
+    $fclose(data_file);
+    `uvm_info("SCB_GNUPLOT", $sformatf("Archivo de datos de GNUplot creado: %s", gnuplot_data_filename), UVM_LOW)
+  endfunction
+
+  // ========== NUEVO: Función para crear script de GNUplot ==========
+  function void create_gnuplot_script();
+    int script_file;
+    script_file = $fopen(gnuplot_script_filename, "w");
+    if (script_file == 0) begin
+      `uvm_error("SCB_GNUPLOT", $sformatf("No se pudo crear el script de GNUplot: %s", gnuplot_script_filename))
+      return;
+    end
+
+    $fwrite(script_file, "set terminal pngcairo size 1024,768 enhanced font 'Arial,12'\n");
+    $fwrite(script_file, "set output '%s'\n", plot_filename);
+    $fwrite(script_file, "set title 'Latencia Promedio por Terminal'\n");
+    $fwrite(script_file, "set xlabel 'Terminal ID'\n");
+    $fwrite(script_file, "set ylabel 'Latencia Promedio (ns)'\n");
+    $fwrite(script_file, "set style data histograms\n");
+    $fwrite(script_file, "set style fill solid border -1\n");
+    $fwrite(script_file, "set boxwidth 0.8\n");
+    $fwrite(script_file, "set grid ytics\n");
+    $fwrite(script_file, "set xtics rotate by 0\n");
+    $fwrite(script_file, "plot '%s' using 2:xtic(1) title 'Latencia Promedio' linecolor rgb '#3366cc', \\\n", gnuplot_data_filename);
+    $fwrite(script_file, "     '' using 0:2:3 with labels offset 0,1 title ''\n");
+
+    $fclose(script_file);
+    `uvm_info("SCB_GNUPLOT", $sformatf("Script de GNUplot creado: %s", gnuplot_script_filename), UVM_LOW)
+  endfunction
+
+  // ========== NUEVO: Función para generar el gráfico con GNUplot ==========
+  function void generate_plot();
+    string command;
+    int ret;
+    
+    // Crear archivos necesarios
+    create_gnuplot_data_file();
+    create_gnuplot_script();
+    
+    // Ejecutar GNUplot
+    command = $sformatf("gnuplot %s", gnuplot_script_filename);
+    ret = $system(command);
+    
+    if (ret != 0) begin
+      `uvm_error("SCB_GNUPLOT", "Error al ejecutar GNUplot. Verifica que esté instalado en el sistema.")
+      // Intentar método alternativo
+      `uvm_info("SCB_GNUPLOT", "Intentando método alternativo...", UVM_LOW)
+      generate_plot_alternative();
+    end else begin
+      `uvm_info("SCB_GNUPLOT", $sformatf("Gráfico generado exitosamente: %s", plot_filename), UVM_LOW)
+      // Verificar que el archivo se creó correctamente
+      check_plot_file();
+    end
+  endfunction
+
+  // ========== NUEVO: Método alternativo para generar gráfico ==========
+  function void generate_plot_alternative();
+    int data_file;
+    string alternative_script = "alternative_plot.gp";
+    int script_file;
+    
+    `uvm_info("SCB_GNUPLOT", "Usando método alternativo para generar gráfico...", UVM_LOW)
+    
+    // Crear script más simple
+    script_file = $fopen(alternative_script, "w");
+    if (script_file == 0) begin
+      `uvm_error("SCB_GNUPLOT", "No se pudo crear script alternativo")
+      return;
+    end
+    
+    $fwrite(script_file, "set terminal png\n");
+    $fwrite(script_file, "set output '%s'\n", plot_filename);
+    $fwrite(script_file, "set title 'Latencia Promedio por Terminal'\n");
+    $fwrite(script_file, "set xlabel 'Terminal'\n");
+    $fwrite(script_file, "set ylabel 'Latencia (ns)'\n");
+    $fwrite(script_file, "plot '%s' using 2:xtic(1) with boxes\n", gnuplot_data_filename);
+    $fclose(script_file);
+    
+    // Ejecutar
+    if ($system($sformatf("gnuplot %s", alternative_script)) == 0) begin
+      `uvm_info("SCB_GNUPLOT", "Gráfico alternativo generado", UVM_LOW)
+    end else begin
+      `uvm_error("SCB_GNUPLOT", "Falló el método alternativo también")
+    end
+  endfunction
+
+  // ========== NUEVO: Verificar que el archivo de gráfico se creó ==========
+  function void check_plot_file();
+    int file_check;
+    file_check = $fopen(plot_filename, "r");
+    if (file_check == 0) begin
+      `uvm_error("SCB_GNUPLOT", $sformatf("El archivo de gráfico %s no se creó o está vacío", plot_filename))
+    end else begin
+      `uvm_info("SCB_GNUPLOT", $sformatf("Archivo de gráfico verificado: %s", plot_filename), UVM_LOW)
+      $fclose(file_check);
+    end
+  endfunction
+
   virtual function void check_phase(uvm_phase phase);
     super.check_phase(phase);
 
@@ -456,6 +580,12 @@ class mesh_scoreboard extends uvm_scoreboard;
 
     // ========== NUEVO: Generar reporte CSV ==========
     generate_csv_report();
+
+    // ========== NUEVO: Generar gráfico con GNUplot ==========
+    if (generate_plot) begin
+      `uvm_info("SCB_GNUPLOT", "Generando gráfico de latencias...", UVM_LOW)
+      generate_plot();
+    end
 
     // ========== NUEVO: Cerrar archivo CSV ==========
     close_csv_file();
