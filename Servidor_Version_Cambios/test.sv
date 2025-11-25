@@ -212,7 +212,7 @@ class test extends uvm_test;
                 seq.dest_mode = 0; // sólo destinos inválidos
             end
             else if (configuration.name == "Prueba 3") begin
-                seq.dest_mode = 1; // sólo destinos inválidos
+                seq.dest_mode = 0; // sólo destinos inválidos
             end
 
             seq.start(env.agents[agent].s0);
