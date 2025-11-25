@@ -70,8 +70,15 @@ class test extends uvm_test;
 
         prueba.name = "Prueba 2";
         prueba.num_packets_per_agent = '{
-            0: 40,  1: 40,  2: 20,  3:20,  4: 30,  5: 10,  6: 30,  7: 30,
-            8: 25,  9: 30,  10: 20, 11: 30, 12: 10, 13: 10, 14: 10, 15: 20
+            0: 50,  1: 40,  2: 20,  3:20,  4: 30,  5: 10,  6: 30,  7: 30,
+            8: 25,  9: 60,  10: 30, 11: 30, 12: 50, 13: 10, 14: 20, 15: 20
+        };
+        test_list.push_back(prueba);
+
+        prueba.name = "Prueba 3";
+        prueba.num_packets_per_agent = '{
+            0: 50,  1: 40,  2: 20,  3:20,  4: 30,  5: 50,  6: 30,  7: 30,
+            8: 25,  9: 60,  10: 30, 11: 30, 12: 50, 13: 50, 14: 20, 15: 50
         };
         test_list.push_back(prueba);
 
@@ -199,10 +206,13 @@ class test extends uvm_test;
             seq.num = configuration.num_packets_per_agent[agent];
 
             if (configuration.name == "Prueba 1") begin
-                seq.dest_mode = 2; // sólo destinos válidos
+                seq.dest_mode = 0; // sólo destinos válidos
             end
             else if (configuration.name == "Prueba 2") begin
-                seq.dest_mode = 2; // sólo destinos inválidos
+                seq.dest_mode = 0; // sólo destinos inválidos
+            end
+            else if (configuration.name == "Prueba 3") begin
+                seq.dest_mode = 0; // sólo destinos inválidos
             end
 
             seq.start(env.agents[agent].s0);
