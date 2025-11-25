@@ -2,7 +2,7 @@ class gen_mesh_seq extends uvm_sequence #(mesh_pkt);
   `uvm_object_utils(gen_mesh_seq)
 
   rand int num;  
-  constraint c1 { num inside {[2:50]}; }
+  constraint c1 { num inside {[2:100]}; }
 
   // 0 = sólo destinos válidos
   // 1 = sólo destinos inválidos
